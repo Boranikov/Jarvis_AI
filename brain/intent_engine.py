@@ -2,74 +2,78 @@ import ollama
 import json
 import re
 
-def process_command(text, history=[]):
-    
-    # --- 1. SABİT CEVAPLAR (Hız için) ---
-    normalized_text = text.lower().strip()
-    
-    if "orda mısın" in normalized_text or "orada mısın" in normalized_text:
-        return {"action": "small_talk", "reply": "Sizin için her zaman efendim.", "parameters": {}}
-        
-    if normalized_text in ["merhaba", "selam", "günaydın"]:
-        return {"action": "small_talk", "reply": "Merhabalar efendim.", "parameters": {}}
+SYSTEM_PROMPT = """
+You are Jarvis, a local AI assistant.
 
-    # --- 2. YAPAY ZEKA ---
-    # Geçmişi metne dök
-    history_text = ""
-    for msg in history[-2:]: 
-        history_text += f"{msg['role']}: {msg['content']}\n"
+Rules:
+- Always respond in Turkish
+- Always address the user as "Efendim"
+- Respond ONLY with valid JSON
+- No explanations
+- No markdown
 
-    prompt = f"""
-GÖREV: Kullanıcı girdisini analiz et ve JSON döndür.
-BAĞLAM: Sen bilgisayar kontrol eden bir asistansın.
+Allowed actions:
+- create_file
+- create_folder
+- delete_file
+- delete_folder
+- play_music
+- web_search
+- small_talk
+- missing_parameters
+- unknown
 
-GEÇMİŞ:
-{history_text}
+IMPORTANT:
+- You NEVER ask questions.
+- If required parameters are missing:
+  action = "missing_parameters"
+  parameters.missing = list of missing fields
 
-KOMUTLAR VE ANLAMLARI:
-- "create_file": Metin belgesi, txt, not defteri, dosya oluşturmak için.
-- "create_folder": Klasör, dizin, dosya grubu oluşturmak için.
-- "play_music": Şarkı, müzik, sanatçı çalmak için.
-- "web_search": İnternet araması için.
+Parameter rules:
+- create_file / create_folder require "name"
+- If extension missing → add ".txt"
+- Default location = "desktop"
 
-ÖRNEKLER (BUNLARA BAKARAK CEVAPLA):
-1. Kullanıcı: "Masaüstüne notlar adında bir txt dosyası oluştur."
-   Çıktı: {{ "action": "create_file", "parameters": {{ "name": "notlar.txt", "location": "desktop" }}, "reply": "Notlar dosyası oluşturuluyor efendim." }}
+Locations:
+- masaüstü → desktop
+- belgeler → documents
+- indirilenler → downloads
+- müzik → music
+- resimler → pictures
 
-2. Kullanıcı: "Resimler diye bir klasör aç."
-   Çıktı: {{ "action": "create_folder", "parameters": {{ "name": "Resimler", "location": "desktop" }}, "reply": "Klasör açıldı efendim." }}
+JSON FORMAT:
+{
+  "action": "string",
+  "reply": "string",
+  "parameters": {}
+}
 
-ŞU ANKİ GİRDİ: "{text}"
-
-KURAL: "reply" mutlaka "Efendim" içermeli ve kibar olmalı.
-
-SADECE JSON DÖNDÜR:
+Respond ONLY with JSON.
 """
-    try:
-        response = ollama.chat(
-            model="gemma2:2b",
-            messages=[{"role": "user", "content": prompt}],
-            options={"temperature": 0.1} # Yaratıcılığı kıstık, kurallara uysun
-        )
-        content = response.message.content.strip()
-        
-        json_match = re.search(r'(\{.*\})', content, re.DOTALL)
-        result = {}
-        
-        if json_match:
-            result = json.loads(json_match.group(1))
-        else:
-            try:
-                result = json.loads(content)
-            except:
-                result = {"action": "unknown", "reply": "Tam anlayamadım efendim."}
 
-        # Eksik reply kontrolü
-        if "reply" not in result:
-            result["reply"] = "İşleminiz yapılıyor efendim."
-            
-        return result
+def process_command(text, history):
+    response = ollama.chat(
+        model="gemma2:2b",
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": text}
+        ],
+        options={"temperature": 0.1}
+    )
 
-    except Exception as e:
-        print(f"[HATA] {e}")
-        return {"action": "unknown", "reply": "Sistem hatası efendim.", "parameters": {}}
+    content = response.message.content.strip()
+    match = re.search(r"\{.*\}", content, re.DOTALL)
+
+    if not match:
+        return {
+            "action": "unknown",
+            "reply": "Anlayamadım efendim.",
+            "parameters": {}
+        }
+
+    result = json.loads(match.group())
+
+    if "reply" in result and "efendim" not in result["reply"].lower():
+        result["reply"] += " Efendim."
+
+    return result
