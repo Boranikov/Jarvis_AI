@@ -6,6 +6,9 @@ if __name__ == "__main__":
     print("                  Jarvis")
     print("------------------------------------------------")
 
+# --- HAFIZA LİSTESİ ---
+    chat_history = [] 
+
     while True:
         user_input = input("\nSen: ")
         
@@ -16,12 +19,30 @@ if __name__ == "__main__":
 
         print("Jarvis düşünüyor...", end="\r")
         
-        # 1. Beyin (Analiz)
-        result = process_command(user_input)
+        # 1. BEYİN: Analiz et (Artık geçmişi de gönderiyoruz)
+        result = process_command(user_input, chat_history)
         
+        # --- DEBUG (Görmek istersen açık kalsın) ---
+        # print(f"\n[DEBUG] Gelen Veri: {result}") 
+
         print(" " * 20, end="\r")
-        print(f"Jarvis: {result['reply']}")
         
-        # 2. Kaslar (İşlem)
-        # Artık 'data' yerine 'parameters' gönderiyoruz
-        perform_skill(result['action'], result.get('parameters', {}))
+        reply = result.get('reply', 'Efendim?')
+        print(f"Jarvis: {reply}")
+        
+        action = result.get('action', 'unknown')
+        parameters = result.get('parameters', {})
+        
+        # 2. KASLAR: İşlemi yap
+        perform_skill(action, parameters)
+
+        # --- HAFIZAYA KAYDET ---
+        # 1. Senin dediğini kaydet
+        chat_history.append({"role": "Kullanıcı", "content": user_input})
+        
+        # 2. Jarvis'in cevabını kaydet
+        chat_history.append({"role": "Jarvis", "content": reply})
+        
+        # Hafıza şişmesin diye sadece son 10 mesajı tutalım
+        if len(chat_history) > 10:
+            chat_history = chat_history[-10:]

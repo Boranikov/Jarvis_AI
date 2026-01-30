@@ -3,41 +3,52 @@ import webbrowser
 import shutil 
 
 def get_path(location):
-    """
-    LLM'den gelen yer ismini (desktop, documents) gerçek Windows yoluna çevirir.
-    """
-    base_path = os.environ['USERPROFILE'] # C:\Users\KullaniciAdi
-    
+    base_path = os.environ['USERPROFILE'] 
     paths = {
         "desktop": os.path.join(base_path, "Desktop"),
         "documents": os.path.join(base_path, "Documents"),
         "downloads": os.path.join(base_path, "Downloads"),
         "music": os.path.join(base_path, "Music"),
         "pictures": os.path.join(base_path, "Pictures"),
-        "current": os.getcwd() # Programın çalıştığı klasör
     }
-    
-    # Eğer tanınmayan bir yer gelirse varsayılan olarak Masaüstü olsun
     return paths.get(location, paths["desktop"])
 
 def perform_skill(action, params):
+    if not isinstance(params, dict):
+        params = {}
+
     name = params.get("name")
     location = params.get("location", "desktop")
-    
-    # Hedef yolun tam adresi
     target_dir = get_path(location)
+    
+    # Tam yol oluşturma (Geçici)
     full_path = os.path.join(target_dir, name) if name else None
 
+    # --- DOSYA OLUŞTURMA (GELİŞMİŞ) ---
+    if action == "create_file":
+        if name:
+            # EĞER SONUNDA .txt YOKSA BİZ EKLEYELİM
+            if "." not in name:
+                name += ".txt"
+                full_path = os.path.join(target_dir, name)
+            
+            try:
+                with open(full_path, 'w', encoding='utf-8') as f:
+                    f.write("") 
+                print(f">> [Başarılı] Dosya oluşturuldu: {full_path}")
+            except Exception as e:
+                print(f">> [Hata] {e}")
+        else:
+            print(">> [Hata] Dosya ismi belirtilmedi.")
+
     # --- KLASÖR OLUŞTURMA ---
-    if action == "create_folder":
+    elif action == "create_folder":
         if name:
             try:
                 os.makedirs(full_path, exist_ok=True)
                 print(f">> [Başarılı] Klasör oluşturuldu: {full_path}")
             except Exception as e:
                 print(f">> [Hata] {e}")
-        else:
-            print(">> [Hata] Klasör ismi belirtilmedi.")
 
     # --- KLASÖR SİLME (DİKKAT!) ---
     elif action == "delete_folder":

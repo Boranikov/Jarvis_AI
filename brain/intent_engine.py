@@ -2,31 +2,46 @@ import ollama
 import json
 import re
 
-def process_command(text):
+def process_command(text, history=[]):
+    
+    # --- 1. SABİT CEVAPLAR (Hız için) ---
+    normalized_text = text.lower().strip()
+    
+    if "orda mısın" in normalized_text or "orada mısın" in normalized_text:
+        return {"action": "small_talk", "reply": "Sizin için her zaman efendim.", "parameters": {}}
+        
+    if normalized_text in ["merhaba", "selam", "günaydın"]:
+        return {"action": "small_talk", "reply": "Merhabalar efendim.", "parameters": {}}
+
+    # --- 2. YAPAY ZEKA ---
+    # Geçmişi metne dök
+    history_text = ""
+    for msg in history[-2:]: 
+        history_text += f"{msg['role']}: {msg['content']}\n"
+
     prompt = f"""
-Sen niyet analizi yapan gelişmiş bir yapay zeka motorusun.
-GÖREV: Kullanıcının doğal dildeki isteğini analiz et ve aşağıdaki araçlardan (actions) hangisini kullanmak istediğini "anlamına göre" belirle.
+GÖREV: Kullanıcı girdisini analiz et ve JSON döndür.
+BAĞLAM: Sen bilgisayar kontrol eden bir asistansın.
 
-MEVCUT AKSİYONLAR VE TANIMLARI:
-1. "play_music": Kullanıcı şarkı dinlemek, müzik açmak veya bir sanatçıdan bir parça duymak istediğinde seç.
-2. "create_folder": Kullanıcı yeni bir klasör/dizin oluşturmak istediğinde seç.
-3. "delete_folder": Kullanıcı var olan bir klasörü silmek/kaldırmak istediğinde seç.
-4. "create_file": Kullanıcı yeni bir dosya (txt, docx vb.) yaratmak istediğinde seç.
-5. "delete_file": Kullanıcı bir dosyayı silmek istediğinde seç.
-6. "web_search": Kullanıcı bir bilgi aradığında, internette bir şeye bakmak istediğinde veya "kimdir, nedir" diye sorduğunda seç.
-7. "small_talk": Kullanıcı sadece selam veriyorsa, hal hatır soruyorsa veya işlem gerektirmeyen sohbet ediyorsa seç.
+GEÇMİŞ:
+{history_text}
 
-ÇIKTI FORMATI (JSON):
-{{
-    "action": "Yukarıdaki listeden en uygun olanı seç",
-    "parameters": {{
-        "name": "İşlem yapılacak dosya, klasör veya şarkı adı (Örn: 'Sezen Aksu', 'Ödevler', 'not.txt'). Bulamazsan null yap.",
-        "location": "Sadece şunlardan biri: ['desktop', 'documents', 'downloads', 'music', 'pictures']. Kullanıcı belirtmediyse varsayılan 'desktop' seç."
-    }},
-    "reply": "Kullanıcıya işlemin yapıldığına dair Türkçe, kısa ve doğal bir onay mesajı, efendim diye hitap ederek."
-}}
+KOMUTLAR VE ANLAMLARI:
+- "create_file": Metin belgesi, txt, not defteri, dosya oluşturmak için.
+- "create_folder": Klasör, dizin, dosya grubu oluşturmak için.
+- "play_music": Şarkı, müzik, sanatçı çalmak için.
+- "web_search": İnternet araması için.
 
-Kullanıcı Girdisi: "{text}"
+ÖRNEKLER (BUNLARA BAKARAK CEVAPLA):
+1. Kullanıcı: "Masaüstüne notlar adında bir txt dosyası oluştur."
+   Çıktı: {{ "action": "create_file", "parameters": {{ "name": "notlar.txt", "location": "desktop" }}, "reply": "Notlar dosyası oluşturuluyor efendim." }}
+
+2. Kullanıcı: "Resimler diye bir klasör aç."
+   Çıktı: {{ "action": "create_folder", "parameters": {{ "name": "Resimler", "location": "desktop" }}, "reply": "Klasör açıldı efendim." }}
+
+ŞU ANKİ GİRDİ: "{text}"
+
+KURAL: "reply" mutlaka "Efendim" içermeli ve kibar olmalı.
 
 SADECE JSON DÖNDÜR:
 """
@@ -34,16 +49,27 @@ SADECE JSON DÖNDÜR:
         response = ollama.chat(
             model="gemma2:2b",
             messages=[{"role": "user", "content": prompt}],
-            options={"temperature": 0.1} # Yaratıcılığı düşük tutuyoruz ki JSON bozulmasın
+            options={"temperature": 0.1} # Yaratıcılığı kıstık, kurallara uysun
         )
         content = response.message.content.strip()
         
-        # JSON'u ayıklama
         json_match = re.search(r'(\{.*\})', content, re.DOTALL)
+        result = {}
+        
         if json_match:
-            return json.loads(json_match.group(1))
-        return json.loads(content)
+            result = json.loads(json_match.group(1))
+        else:
+            try:
+                result = json.loads(content)
+            except:
+                result = {"action": "unknown", "reply": "Tam anlayamadım efendim."}
+
+        # Eksik reply kontrolü
+        if "reply" not in result:
+            result["reply"] = "İşleminiz yapılıyor efendim."
+            
+        return result
 
     except Exception as e:
-        print(f"[HATA] Model: {e}")
-        return {"action": "unknown", "reply": "Ne demek istediğini tam anlayamadım.", "parameters": {}}
+        print(f"[HATA] {e}")
+        return {"action": "unknown", "reply": "Sistem hatası efendim.", "parameters": {}}
