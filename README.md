@@ -1,4 +1,4 @@
-# Jarvis AI Assistant
+# Just A Rather Very Intelligent Servant (J.A.R.V.I.S)
 
 Türkçe konuşan, yerel bir AI asistanı. Ollama LLM modeli üzerinde çalışır.
 
