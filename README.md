@@ -19,14 +19,14 @@ Jarvis_Aİ/
 │   ├── intent_engine.py   # LLM tabanlı intent tanıma
 │   └── memory.py          # Konuşma hafızası
 │
-├── Setup and Guide/        #Yükleme ve kullanım talimatları
+├── Setup and Guide/                 #Yükleme ve kullanım talimatları
 │    ├── BAŞLANGIÇ_REHBERI.md        # Başlangıç Rehberi
-│    ├── BRANCHING_STRATEGY.md        # Brach stratejisi
-│    ├── CONTRIBUTING.md        # Katkıda bulunma
-│    ├── GIT_STRUCTURE_SUMMARY.md        # Git mimarisi
+│    ├── BRANCHING_STRATEGY.md       # Brach stratejisi
+│    ├── CONTRIBUTING.md             # Katkıda bulunma
+│    ├── GIT_STRUCTURE_SUMMARY.md    # Git mimarisi
 │    ├── PROJECT_STRUCTURE.md        # Proje mimarisi
-│    ├── requirements.txt        # Gerekenler listesi
-│    ├── setup.py        # Yükleme dosyası
+│    ├── requirements.txt            # Gerekenler listesi
+│    ├── setup.py                    # Yükleme dosyası
 │  
 └── Skills/                # Eylem yöneticisi
     ├── __init__.py
