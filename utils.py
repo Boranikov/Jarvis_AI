@@ -4,6 +4,13 @@ Jarvis AI Assistant - Yardımcı Fonksiyonlar
 
 from config import ACTION_KEYWORDS, ATTENTION_WORDS
 
+def remove_ai_name(user_input: str) -> str:
+    """Kullanıcı girdisinden AI adını kaldır"""
+    ai_names = ["jarvis"]
+    text = user_input.lower()
+    for name in ai_names:
+        text = text.replace(name, " ")
+    return " ".join(text.split()).strip()
 
 def extract_name_from_input(user_input: str, action: str) -> str:
     """
