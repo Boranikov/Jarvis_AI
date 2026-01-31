@@ -3,11 +3,11 @@ Jarvis AI Assistant - Ana Uygulama
 Türkçe konuşan, yerel bir AI asistanı.
 """
 
-from brain.intent_engine import process_command
-from brain.memory import Memory
+from Brain.intent_engine import process_command
+from Brain.memory import Memory
 from Skills.skills_manager import perform_skill
-from utils import extract_name_from_input
-from config import (
+from Settings.utils import extract_name_from_input
+from Settings.config import (
     PRESENCE_TRIGGERS,
     REQUIRED_PARAMS,
     MISSING_QUESTIONS,

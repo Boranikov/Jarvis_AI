@@ -3,7 +3,7 @@ Jarvis Memory Module
 Konuşma geçmişini ve bekleyen işlemleri yönet.
 """
 
-from config import MEMORY_HISTORY_LIMIT
+from Settings.config import MEMORY_HISTORY_LIMIT
 
 
 class Memory:

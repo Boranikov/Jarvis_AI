@@ -6,7 +6,7 @@ Kullanıcı girdisini NLP ile analiz ederek aksiyon ve parametreleri çıkar.
 import ollama
 import json
 import re
-from config import LLM_MODEL, LLM_TEMPERATURE
+from Settings.config import LLM_MODEL, LLM_TEMPERATURE
 
 SYSTEM_PROMPT = """
 You are Jarvis, a local Turkish AI assistant.

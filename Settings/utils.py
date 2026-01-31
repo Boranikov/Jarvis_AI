@@ -2,7 +2,7 @@
 Jarvis AI Assistant - Yardımcı Fonksiyonlar
 """
 
-from config import ACTION_KEYWORDS, ATTENTION_WORDS
+from Settings.config import ACTION_KEYWORDS, ATTENTION_WORDS
 
 
 def extract_name_from_input(user_input: str, action: str) -> str:
