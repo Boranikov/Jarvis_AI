@@ -7,16 +7,27 @@ Türkçe konuşan, yerel bir AI asistanı. Ollama LLM modeli üzerinde çalış�
 ```
 Jarvis_Aİ/
 ├── main.py                 # Ana uygulama
-├── config.py              # Konfigürasyon dosyası
-├── utils.py               # Yardımcı fonksiyonlar
 ├── requirements.txt       # Bağımlılıklar
 ├── README.md              # Dokümantasyon
 │
-├── brain/                 # NLP ve Intent Engine
+├── Settings/
+│     ├── config.py        # Konfigürasyon dosyası
+│     ├── utils.py        # Yardımcı fonksiyonlar
+│
+├── Brain/                 # NLP ve Intent Engine
 │   ├── __init__.py
 │   ├── intent_engine.py   # LLM tabanlı intent tanıma
 │   └── memory.py          # Konuşma hafızası
 │
+├── Setup and Guide/        #Yükleme ve kullanım talimatları
+│    ├── BAŞLANGIÇ_REHBERI.md        # Başlangıç Rehberi
+│    ├── BRANCHING_STRATEGY.md        # Brach stratejisi
+│    ├── CONTRIBUTING.md        # Katkıda bulunma
+│    ├── GIT_STRUCTURE_SUMMARY.md        # Git mimarisi
+│    ├── PROJECT_STRUCTURE.md        # Proje mimarisi
+│    ├── requirements.txt        # Gerekenler listesi
+│    ├── setup.py        # Yükleme dosyası
+│  
 └── Skills/                # Eylem yöneticisi
     ├── __init__.py
     └── skills_manager.py  # Aksiyonları gerçekleştir
