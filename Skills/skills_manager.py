@@ -96,10 +96,21 @@ def perform_skill(action: str, params: dict):
 
     # Müzik çal
     elif action == "play_music":
-        if name:
+        artist = params.get("artist")
+        song = params.get("song")
+        
+        if artist or song:
+            # Arama sorgusunu oluştur
+            if artist and song:
+                search_query = f"{artist} {song}"
+            elif artist:
+                search_query = artist
+            else:
+                search_query = song
+            
             try:
-                webbrowser.open(f"spotify:search:{name}")
-                print(f">> [OK] Spotify'da '{name}' aranıyor...")
+                webbrowser.open(f"spotify:search:{search_query}")
+                print(f">> [OK] Spotify'da '{search_query}' aranıyor...")
             except Exception as e:
                 print(f">> [ERROR] Spotify açma başarısız: {str(e)}")
         else:

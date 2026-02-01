@@ -53,6 +53,8 @@ def process_user_input(user_input: str, memory: Memory):
     reply = result.get("reply", "Efendim?")
     path = result.get("path")
     name = result.get("name")
+    artist = result.get("artist")
+    song = result.get("song")
     original_action = result.get("original_action")
     parameters = result.get("parameters", {})
     
@@ -67,7 +69,17 @@ def process_user_input(user_input: str, memory: Memory):
     # === EKSİK PARAMETRE YÖNETİMİ ===
     if action == "missing_parameters":
         if original_action and parameters.get("missing"):
-            memory.set_pending(original_action, parameters.get("missing", []))
+            # Orijinal parametreleri (path gibi) sakla
+            original_params = {}
+            if path:
+                original_params["path"] = path
+            if name:
+                original_params["name"] = name
+            if artist:
+                original_params["artist"] = artist
+            if song:
+                original_params["song"] = song
+            memory.set_pending(original_action, parameters.get("missing", []), original_params)
         return
     
     # === PARAMETRELERI DOLDUR ===
@@ -75,6 +87,10 @@ def process_user_input(user_input: str, memory: Memory):
         parameters["path"] = path
     if name:
         parameters["name"] = name
+    if artist:
+        parameters["artist"] = artist
+    if song:
+        parameters["song"] = song
     
     # Path varsayılanını belirle (dosya/klasör işlemleri için)
     if action in ["create_file", "create_folder", "delete_file", "delete_folder"]:

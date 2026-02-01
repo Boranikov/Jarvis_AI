@@ -15,6 +15,7 @@ class Memory:
         self.pending_action = None
         self.pending_params = []
         self.pending_values = {}
+        self.original_params = {}
 
     def add(self, user: str, jarvis: str):
         """
@@ -28,16 +29,18 @@ class Memory:
         if len(self.history) > MEMORY_HISTORY_LIMIT:
             self.history = self.history[-MEMORY_HISTORY_LIMIT:]
 
-    def set_pending(self, action: str, params: list):
+    def set_pending(self, action: str, params: list, original_params: dict = None):
         """
         Bekleyen bir işlem ayarla (eksik parametreler).
         
         Args:
             action: Gerçekleştirilecek aksiyon
             params: Eksik parametreler listesi
+            original_params: Zaten mevcut olan parametreler (ör: path)
         """
         self.pending_action = action
         self.pending_params = params.copy()
+        self.original_params = original_params.copy() if original_params else {}
 
     def has_pending(self) -> bool:
         """Bekleyen işlem var mı?"""
@@ -66,11 +69,14 @@ class Memory:
         # Tüm parametreler doldurulduysa, işlemi döndür
         if not self.pending_params:
             action = self.pending_action
-            params = self.pending_values.copy()
+            # Orijinal parametrelerle yeni parametreleri birleştir
+            params = self.original_params.copy()
+            params.update(self.pending_values)
             
             # Temizle
             self.pending_action = None
             self.pending_values = {}
+            self.original_params = {}
             
             return {"action": action, "params": params}
 
@@ -96,7 +102,8 @@ class Memory:
         self.history = []
 
     def clear_pending(self):
-        """Bekleyen işlemi iptal et"""
+        """Bekleyen işlemi iptal
+        self.original_params = {} et"""
         self.pending_action = None
         self.pending_params = []
         self.pending_values = {}
