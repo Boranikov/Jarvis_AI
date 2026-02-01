@@ -37,8 +37,13 @@ def perform_skill(action: str, params: dict):
         action: Gerçekleştirilecek aksiyon
         params: Aksiyon parametreleri
     """
+    # Params'ın dict olmasını garantile
+    if not isinstance(params, dict):
+        print(">> [ERROR] Parametreler hatalı format.")
+        return
+    
     name = params.get("name")
-    location = params.get("path", "desktop")
+    location = params.get("path")
 
     # Dosya/klasör işlemleri için name gerekli
     if action in ["create_file", "create_folder", "delete_file", "delete_folder"]:

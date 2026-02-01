@@ -14,6 +14,7 @@ class Memory:
         self.history = []
         self.pending_action = None
         self.pending_params = []
+        self.pending_values = {}
 
     def add(self, user: str, jarvis: str):
         """
@@ -42,29 +43,38 @@ class Memory:
         """Bekleyen işlem var mı?"""
         return self.pending_action is not None
 
-    def fill_pending(self, user_input: str) -> tuple or None:
+    def fill_pending(self, user_input: str):
         """
         Bekleyen işlemin parametresini doldur.
+        Birden fazla parametre gerekiyorsa, kullanıcıdan birer birer ister.
         
         Args:
             user_input: Kullanıcı girdisi (parametre değeri)
             
         Returns:
-            (action, params) tuple veya None
+            {"action": action, "params": params_dict} veya None
         """
         if not self.pending_action or not self.pending_params:
             return None
 
         value = user_input.strip()
         param = self.pending_params.pop(0)
-        params = {param: value}
+        
+        # Parametre değerini tutacak dict
+        self.pending_values[param] = value
 
         # Tüm parametreler doldurulduysa, işlemi döndür
         if not self.pending_params:
             action = self.pending_action
+            params = self.pending_values.copy()
+            
+            # Temizle
             self.pending_action = None
-            return action, params
+            self.pending_values = {}
+            
+            return {"action": action, "params": params}
 
+        # Daha parametre lazım
         return None
 
     def get_history(self, limit: int = None) -> list:
@@ -89,4 +99,5 @@ class Memory:
         """Bekleyen işlemi iptal et"""
         self.pending_action = None
         self.pending_params = []
+        self.pending_values = {}
 

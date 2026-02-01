@@ -3,8 +3,8 @@ Jarvis AI Assistant - Konfigürasyon Dosyası
 """
 
 # LLM Ayarları
-LLM_MODEL = "gemma2:2b"
-LLM_TEMPERATURE = 0.1
+LLM_MODEL = "qwen2.5:3b"
+LLM_TEMPERATURE = 0.5
 
 # Presence Triggers
 PRESENCE_TRIGGERS = [
@@ -14,40 +14,27 @@ PRESENCE_TRIGGERS = [
     "hey jarvis orada mısın"
 ]
 
-# Dikkat çekme kelimeleri
-ATTENTION_WORDS = ["hey", "jarvis", "ey", "bre"]
-
-# Action Keywords
-ACTION_KEYWORDS = {
-    "create_file": ["oluştur", "oluşturmak", "yap", "yapmak"],
-    "create_folder": ["oluştur", "oluşturmak", "klasör", "folder"],
-    "delete_file": ["sil", "silmek"],
-    "delete_folder": ["sil", "silmek", "klasör", "folder"],
-    "play_music": ["çal", "oyna", "spotify", "spotifydan", "müzik"],
-    "web_search": ["ara", "aramak", "google", "ggle"]
-}
-
-# Gerekli parametreler
+# Gerekli parametreler (referans olarak tutulmuştur)
 REQUIRED_PARAMS = {
-    "create_file": ["name"],
-    "create_folder": ["name"],
-    "delete_file": ["name"],
-    "delete_folder": ["name"]
+    "create_file": ["name", "path"],
+    "create_folder": ["name", "path"],
+    "delete_file": ["name", "path"],
+    "delete_folder": ["name", "path"]
 }
 
-# Eksik parametre soruları
+# Eksik parametre soruları (referans olarak tutulmuştur)
 MISSING_QUESTIONS = {
     "create_file": {
-        "name": "Efendim, dosyanın ismini söyler misiniz?"
+        "name": "Dosyanın ismini söyler misiniz?"
     },
     "create_folder": {
-        "name": "Efendim, klasörün ismini söyler misiniz?"
+        "name": "Klasörün ismini söyler misiniz?"
     },
     "delete_file": {
-        "name": "Efendim, silinecek dosyanın ismini belirtir misiniz?"
+        "name": "Silinecek dosyanın ismini belirtir misiniz?"
     },
     "delete_folder": {
-        "name": "Efendim, silinecek klasörün ismini belirtir misiniz?"
+        "name": "Silinecek klasörün ismini belirtir misiniz?"
     }
 }
 
