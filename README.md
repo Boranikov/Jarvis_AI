@@ -6,31 +6,27 @@ Türkçe konuşan, yerel bir AI asistanı. Ollama LLM modeli üzerinde çalış�
 
 ```
 Jarvis_Aİ/
-├── main.py                 # Ana uygulama
-├── requirements.txt       # Bağımlılıklar
-├── README.md              # Dokümantasyon
+├── main.py                    # Ana uygulama (entry point)
+├── config.py                  # Konfigürasyon dosyası
+├── requirements.txt           # Bağımlılıklar
 │
-├── Settings/
-│     ├── config.py        # Konfigürasyon dosyası
-│     ├── utils.py        # Yardımcı fonksiyonlar
+├── Core/                      # Ana işleme modülü
+│   ├── handler.py             # Kullanıcı girdisi işleme
+│   └── display.py             # UI ve çıktı fonksiyonları
 │
-├── Brain/                 # NLP ve Intent Engine
-│   ├── __init__.py
-│   ├── intent_engine.py   # LLM tabanlı intent tanıma
-│   └── memory.py          # Konuşma hafızası
+├── Brain/                     # NLP ve Intent Engine
+│   ├── intent_engine.py       # LLM tabanlı intent tanıma
+│   └── memory.py              # Konuşma hafızası
 │
-├── Setup and Guide/                 #Yükleme ve kullanım talimatları
-│    ├── BAŞLANGIÇ_REHBERI.md        # Başlangıç Rehberi
-│    ├── BRANCHING_STRATEGY.md       # Brach stratejisi
-│    ├── CONTRIBUTING.md             # Katkıda bulunma
-│    ├── GIT_STRUCTURE_SUMMARY.md    # Git mimarisi
-│    ├── PROJECT_STRUCTURE.md        # Proje mimarisi
-│    ├── requirements.txt            # Gerekenler listesi
-│    ├── setup.py                    # Yükleme dosyası
-│  
-└── Skills/                # Eylem yöneticisi
-    ├── __init__.py
-    └── skills_manager.py  # Aksiyonları gerçekleştir
+├── Skills/                    # Beceri modülleri
+│   ├── skills_manager.py      # Skill yönlendirici (router)
+│   ├── file_skills.py         # Dosya/klasör işlemleri
+│   ├── music_skills.py        # Müzik çalma
+│   └── web_skills.py          # Web araması
+│
+└── Utils/                     # Yardımcı fonksiyonlar
+    ├── paths.py               # Path işlemleri
+    └── helpers.py             # Genel yardımcılar
 ```
 
 ## Kurulum
@@ -40,9 +36,9 @@ Jarvis_Aİ/
 pip install -r requirements.txt
 ```
 
-2. Ollama'yı kur ve `gemma2:2b` modelini indir:
+2. Ollama'yı kur ve modeli indir:
 ```bash
-ollama pull gemma2:2b
+ollama pull qwen2.5:3b
 ollama serve
 ```
 
@@ -53,7 +49,7 @@ python main.py
 
 ## Özellikler
 
-- 🎯 **Intent Recognition**: Kullanan girdisini NLP ile analiz et
+- 🎯 **Intent Recognition**: Kullanıcı girdisini NLP ile analiz et
 - 📁 **Dosya Yönetimi**: Dosya/klasör oluştur ve sil
 - 🎵 **Spotify Entegrasyonu**: Spotify'dan müzik çal
 - 🔍 **Web Arama**: Google'da ara
@@ -66,37 +62,33 @@ python main.py
 - "Jarvis, test.txt oluştur"
 - "Jarvis, my_folder klasörü oluştur"
 - "Jarvis, test.txt sil"
-- "Jarvis, my_folder sil"
 
 ### Müzik
 - "Jarvis, Tarkan çal"
-- "Spotify'dan Gökhan Türkmen çal"
+- "Sezen Aksu tükeneceğiz çal"
 
 ### Web Arama
 - "Jarvis, Python ara"
-- "Google'da AI ara"
 
 ### Sistem
-- "Jarvis, orda mısın?" → Sistem status kontrolü
+- "Jarvis, orda mısın?" → Sistem kontrolü
 - "çık" veya "exit" → Programı kapat
 
 ## Konfigürasyon
 
 `config.py` dosyasında ayarları özelleştirebilirsiniz:
 
-- `LLM_MODEL`: Kullanan LLM modeli
+- `LLM_MODEL`: Kullanılan LLM modeli
 - `LLM_TEMPERATURE`: Yaratıcılık seviyesi
-- `ACTION_KEYWORDS`: Aksiyon tetikleyici kelimeler
 - `DEBUG_MODE`: Hata ayıklama modu
 
 ## Geliştirme
 
 Yeni özellik eklemek için:
 
-1. `config.py`'de action tanımla
-2. `brain/intent_engine.py`'de SYSTEM_PROMPT'u güncelle
-3. `Skills/skills_manager.py`'ye işlemi ekle
-4. `main.py`'de kontrol logikasını ekle
+1. `Skills/` altına yeni skill dosyası oluştur (örn: `weather_skills.py`)
+2. `Skills/skills_manager.py`'deki `SKILL_MAP`'e ekle
+3. `Brain/intent_engine.py`'deki `SYSTEM_PROMPT`'a action ekle
 
 ## Lisans
 

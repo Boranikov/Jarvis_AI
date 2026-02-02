@@ -5,70 +5,127 @@ Jarvis AI Assistant - Proje Yapısı Özeti
 PROJECT_STRUCTURE = """
 Jarvis_Aİ/
 │
-├── main.py                    # Ana uygulama - başlangıç noktası
-├── config.py                  # Konfigürasyon dosyası (ayarları buradan düzenle)
-├── utils.py                   # Yardımcı fonksiyonlar
+├── main.py                    # Ana uygulama - entry point
+├── config.py                  # Konfigürasyon dosyası
 ├── setup.py                   # Kurulum betiği
 ├── requirements.txt           # Python bağımlılıkları
 ├── README.md                  # Proje dokümantasyonu
 ├── .gitignore                 # Git ignore kuralları
 │
-├── .vscode/
-│   └── launch.json            # VS Code debug yapılandırması
+├── Core/                      # Ana işleme modülü
+│   ├── __init__.py
+│   ├── handler.py             # Kullanıcı girdisi işleme
+│   │   ├── process_user_input()    # Input -> Intent -> Skill
+│   │   └── handle_presence_check() # "Jarvis orda mısın?" kontrolü
+│   └── display.py             # UI ve çıktı fonksiyonları
+│       ├── print_header()     # Başlık yazdır
+│       └── print_debug()      # Debug bilgileri
 │
-├── brain/                     # NLP ve Intent Engine modülü
+├── Brain/                     # NLP ve Intent Engine modülü
 │   ├── __init__.py
 │   ├── intent_engine.py       # LLM tabanlı intent tanıma
-│   │   └── SYSTEM_PROMPT      # Ollama LLM için system prompt
+│   │   └── process_command()  # User input -> JSON (action, params)
 │   └── memory.py              # Konuşma hafızası ve state yönetimi
+│       └── Memory class       # History ve pending işlemler
 │
-└── Skills/                    # Eylem yöneticisi modülü
+├── Skills/                    # Beceri modülleri
+│   ├── __init__.py
+│   ├── skills_manager.py      # Skill yönlendirici (router)
+│   │   └── perform_skill()    # Action'ı ilgili skill'e yönlendir
+│   ├── file_skills.py         # Dosya/klasör işlemleri
+│   │   ├── create_file()
+│   │   ├── create_folder()
+│   │   ├── delete_file()
+│   │   └── delete_folder()
+│   ├── music_skills.py        # Müzik çalma
+│   │   └── play_music()       # Spotify'da arama
+│   └── web_skills.py          # Web araması
+│       └── web_search()       # Google'da arama
+│
+└── Utils/                     # Yardımcı fonksiyonlar
     ├── __init__.py
-    └── skills_manager.py      # Aksiyonları gerçekleştir (dosya, müzik, vb.)
+    ├── paths.py               # Path işlemleri
+    │   └── get_path()         # "desktop" -> C:/Users/.../Desktop
+    └── helpers.py             # Genel yardımcılar
+        ├── clean_song_name()  # Komut kelimelerini temizle
+        └── debug_print()      # Debug mesajı yazdır
 """
 
 MODULE_DESCRIPTIONS = {
-    "main.py": "Ana program döngüsü ve kullanıcı etkileşimi yönetimi",
+    "main.py": "Sadece entry point ve ana döngü (50 satır)",
     
-    "config.py": "Tüm konfigürasyon ayarları (keywords, prompts, vb.)",
+    "config.py": "Tüm konfigürasyon ayarları (LLM, triggers, vb.)",
     
-    "utils.py": "Ortak yardımcı fonksiyonlar (name extraction, debugging)",
+    "Core/handler.py": """
+    - Kullanıcı girdisini işler
+    - Intent Engine'i çağırır
+    - Skill'leri tetikler
+    - Eksik parametre yönetimi
+    """,
     
-    "brain/intent_engine.py": """
+    "Core/display.py": """
+    - UI fonksiyonları (header, debug)
+    - Çıktı formatlama
+    """,
+    
+    "Brain/intent_engine.py": """
     - Ollama LLM'i kullanarak user input'ı analiz eder
     - JSON formatında action ve parametreleri çıkarır
     - System prompt ile modeli yönlendirir
     """,
     
-    "brain/memory.py": """
+    "Brain/memory.py": """
     - Konuşma geçmişini tutar (son 10 konuşma)
     - Bekleyen işlemleri (pending actions) yönetir
     - State ve session yönetimi
     """,
     
     "Skills/skills_manager.py": """
-    - Dosya/klasör operasyonları (create, delete)
-    - Spotify entegrasyonu (müzik çalma)
-    - Web arama (Google)
-    - Hata yönetimi ve logging
+    - Sadece router görevi görür
+    - Action'ı ilgili skill fonksiyonuna yönlendirir
+    - SKILL_MAP ile aksiyon-fonksiyon eşleştirmesi
+    """,
+    
+    "Skills/file_skills.py": """
+    - Dosya oluşturma/silme
+    - Klasör oluşturma/silme
+    """,
+    
+    "Skills/music_skills.py": """
+    - Spotify'da müzik arama ve çalma
+    - Komut kelimelerini temizleme
+    """,
+    
+    "Skills/web_skills.py": """
+    - Google'da web araması
+    """,
+    
+    "Utils/paths.py": """
+    - Konum adından dosya yolu dönüşümü
+    - desktop, documents, downloads, vb.
+    """,
+    
+    "Utils/helpers.py": """
+    - clean_song_name(): Şarkı adından komut kelimelerini çıkar
+    - debug_print(): Debug mesajları
     """,
 }
 
 FEATURES = {
-    "✓ NLP Intent Recognition": "Ollama LLM ile user input'ı analiz et",
+    "✓ Modüler Yapı": "Her özellik ayrı dosyada",
+    "✓ NLP Intent Recognition": "Ollama LLM ile intent tanıma",
     "✓ Dosya Yönetimi": "Dosya ve klasör oluştur/sil",
-    "✓ Spotify Entegrasyonu": "Spotify'dan müzik çal",
+    "✓ Spotify Entegrasyonu": "Spotify'da müzik ara ve çal",
     "✓ Web Arama": "Google'da ara",
     "✓ Konuşma Hafızası": "Son 10 konuşmayı hatırla",
-    "✓ Dinamik Parametre Çıkartma": "User input'tan eksik parametreleri täyin et",
-    "✓ Multi-step Actions": "Eksik parametreler için step-by-step sorgu",
-    "✓ Error Handling": "Kapsamlı hata yönetimi ve logging",
+    "✓ Multi-step Actions": "Eksik parametreler için sorgu",
+    "✓ Error Handling": "Kapsamlı hata yönetimi",
 }
 
 USAGE_EXAMPLES = {
     "Dosya Oluşturma": [
         "jarvis, test.txt oluştur",
-        "hey jarvis, my_document.docx yap",
+        "masaüstüne deneme dosyası oluştur",
     ],
     
     "Klasör Oluşturma": [
@@ -77,8 +134,8 @@ USAGE_EXAMPLES = {
     ],
     
     "Müzik Çalma": [
-        "jarvis, tarkan çal",
-        "spotify'dan gökhan türkmen çal",
+        "jarvis, tarkan dudu dudu çal",
+        "sezen aksu tükeneceğiz çal",
     ],
     
     "Web Arama": [
