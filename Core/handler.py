@@ -6,8 +6,8 @@ Kullanıcı girdisi işleme fonksiyonları.
 from Brain.intent_engine import process_command
 from Brain.memory import Memory
 from Skills.skills_manager import perform_skill
-from Core.display import print_debug
-from config import PRESENCE_TRIGGERS
+from Core.display import print_debug    
+from Settings.config import PRESENCE_TRIGGERS
 
 
 def handle_presence_check(user_input: str) -> bool:

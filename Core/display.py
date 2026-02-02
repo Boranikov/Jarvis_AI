@@ -3,7 +3,7 @@ Jarvis AI - Display Functions
 Kullanıcı arayüzü ve çıktı fonksiyonları.
 """
 
-from config import DEBUG_MODE
+from Settings.config import DEBUG_MODE
 
 
 def print_header():

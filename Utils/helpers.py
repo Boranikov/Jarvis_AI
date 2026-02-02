@@ -3,7 +3,7 @@ Jarvis AI - Helper Utilities
 Genel yardımcı fonksiyonlar.
 """
 
-from config import DEBUG_MODE
+from Settings.config import DEBUG_MODE
 
 
 def debug_print(message: str, data: dict = None):
