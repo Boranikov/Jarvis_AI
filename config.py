@@ -4,7 +4,7 @@ Jarvis AI Assistant - Konfigürasyon Dosyası
 
 # LLM Ayarları
 LLM_MODEL = "qwen2.5:3b"
-LLM_TEMPERATURE = 0.5
+LLM_TEMPERATURE = 0.1
 
 # Presence Triggers
 PRESENCE_TRIGGERS = [
