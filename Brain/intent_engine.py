@@ -6,7 +6,7 @@ Kullanıcı girdisini NLP ile analiz ederek aksiyon ve parametreleri çıkar.
 import ollama
 import json
 import re
-from config import LLM_MODEL, LLM_TEMPERATURE
+from config import FAST_MODEL, LLM_TEMPERATURE
 
 SYSTEM_PROMPT = """
 You are Jarvis, a local Turkish AI assistant.
@@ -99,6 +99,9 @@ Output: {"action": "play_music", "reply": "Everyway That I Can şarkısını Spo
 User: "Nasılsın Jarvis"
 Output: {"action": "small_talk", "reply": "İyiyim, teşekkürler Efendim. Size nasıl yardımcı olabilirim?", "path": null, "name": null, "original_action": null, "parameters": {}}
 
+User: "Jarvis pyton nedir araştır"
+Output: {"action": "web_search", "reply": "Python nedir araştırıyorum Efendim.", "path": null, "name": "python nedir", "original_action": null, "parameters": {}}
+
 Respond ONLY with JSON.
 """
 
@@ -116,7 +119,7 @@ def process_command(text: str, history: list) -> dict:
     """
     try:
         response = ollama.chat(
-            model=LLM_MODEL,
+            model=FAST_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": text}

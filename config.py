@@ -2,9 +2,11 @@
 Jarvis AI Assistant - Konfigürasyon Dosyası
 """
 
-# LLM Ayarları
-LLM_MODEL = "qwen2.5:3b"
-LLM_TEMPERATURE = 0.1
+# Model Ayarları
+FAST_MODEL = "qwen2.5:3b"           # Hızlı komutlar için
+REASONING_MODEL = "qwen2.5:7b"      # Düşünme/planlama için
+LLM_TEMPERATURE = 0.1               # Hızlı model sıcaklığı
+REASONING_TEMPERATURE = 0.3         # Reasoning model sıcaklığı
 
 # Presence Triggers
 PRESENCE_TRIGGERS = [

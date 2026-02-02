@@ -1,13 +1,15 @@
 """
 Jarvis AI - Input Handler
-Kullanıcı girdisi işleme fonksiyonları.
+Kullanıcı girdisi işleme ve model routing.
 """
 
+from Brain.router import classify_intent, detect_emotion
 from Brain.intent_engine import process_command
+from Brain.reasoning_engine import process_reasoning, format_reasoning_response
 from Brain.memory import Memory
 from Skills.skills_manager import perform_skill
 from Core.display import print_debug
-from config import PRESENCE_TRIGGERS
+from config import PRESENCE_TRIGGERS, DEBUG_MODE
 
 
 def handle_presence_check(user_input: str) -> bool:
@@ -20,9 +22,36 @@ def handle_presence_check(user_input: str) -> bool:
 
 
 def process_user_input(user_input: str, memory: Memory):
-    """Kullanıcı girdisini işle"""
+    """
+    Kullanıcı girdisini işle.
+    Router ile hangi modelin kullanılacağına karar verilir.
+    """
     
-    # Intent Engine'den sonuç al
+    # === ROUTING ===
+    route = classify_intent(user_input)
+    emotion_context = detect_emotion(user_input)
+    
+    if DEBUG_MODE:
+        print(f">> [ROUTER] Model: {'qwen2.5:7b (reasoning)' if route == 'reasoning' else 'qwen2.5:3b (fast)'}")
+        if emotion_context.get("detected"):
+            print(f">> [ROUTER] Duygu: {emotion_context.get('category')} - {emotion_context.get('keywords')}")
+    
+    # === REASONING MODEL ===
+    if route == "reasoning":
+        result = process_reasoning(user_input, emotion_context)
+        
+        if result.get("success"):
+            response = format_reasoning_response(result)
+            print(f"Jarvis: {response}")
+            
+            # Hafızaya ekle
+            memory.add(user_input, response)
+        else:
+            print(f"Jarvis: {result.get('response', 'Bir sorun oluştu Efendim.')}")
+        
+        return
+    
+    # === FAST MODEL (Intent Engine) ===
     result = process_command(user_input, memory.get_history())
     
     action = result.get("action", "unknown")
