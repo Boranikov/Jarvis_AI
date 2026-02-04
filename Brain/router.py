@@ -75,6 +75,23 @@ def classify_intent(user_input: str) -> str:
         if trigger in text:
             return "reasoning"
     
+    # === ÇOKLU İŞLEM TESPİTİ ===
+    # "ve" bağlacı varsa ve birden fazla aksiyon içeriyorsa -> reasoning
+    action_count = 0
+    file_actions = ["oluştur", "aç", "sil", "kaldır"]
+    for action in file_actions:
+        if action in text:
+            action_count += 1
+    
+    # "ve" ile bağlanmış çoklu işlemler -> reasoning
+    if " ve " in text and action_count >= 1:
+        return "reasoning"
+    
+    # "içine", "sonra" gibi sıralı işlem ifadeleri varsa -> reasoning  
+    sequential_keywords = ["içine", "sonra", "ardından", "daha sonra", "içinde"]
+    if any(kw in text for kw in sequential_keywords) and action_count >= 1:
+        return "reasoning"
+    
     # Hızlı aksiyon kelimeleri varsa fast
     for action in FAST_ACTION_KEYWORDS:
         if action in text:
