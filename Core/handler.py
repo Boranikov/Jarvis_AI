@@ -6,6 +6,7 @@ Kullanıcı girdisi işleme ve model routing.
 from Brain.router import classify_intent, detect_emotion
 from Brain.intent_engine import process_command
 from Brain.reasoning_engine import process_reasoning, format_reasoning_response
+from Brain.plan_executor import execute_plan, format_execution_result
 from Brain.memory import Memory
 from Skills.skills_manager import perform_skill
 from Core.display import print_debug
@@ -43,6 +44,19 @@ def process_user_input(user_input: str, memory: Memory):
         if result.get("success"):
             response = format_reasoning_response(result)
             print(f"Jarvis: {response}")
+            
+            # Çalıştırılabilir adımlar varsa yürüt
+            executable_steps = result.get("executable_steps")
+            if executable_steps:
+                if DEBUG_MODE:
+                    print(f">> [PLAN] {len(executable_steps)} adım yürütülecek...")
+                
+                execution_result = execute_plan(executable_steps)
+                execution_message = format_execution_result(execution_result)
+                
+                if execution_message:
+                    print(f"Jarvis: {execution_message}")
+                    response += execution_message
             
             # Hafızaya ekle
             memory.add(user_input, response)

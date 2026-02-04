@@ -45,6 +45,14 @@ FAST_ACTION_KEYWORDS = [
     "nasılsın", "naber", "ne haber"
 ]
 
+# Matematik işlemleri (reasoning model çözsün)
+MATH_KEYWORDS = [
+    "+", "-", "*", "/", "^", "!", "=",
+    "kare", "karekök", "üslü", "üzeri", "faktöriyel",
+    "hesapla", "çöz", "denklem", "eşitlik",
+    "toplam", "çarp", "böl", "çıkar", "ekle"
+]
+
 
 def classify_intent(user_input: str) -> str:
     """
@@ -74,6 +82,34 @@ def classify_intent(user_input: str) -> str:
     for trigger in REASONING_TRIGGERS:
         if trigger in text:
             return "reasoning"
+    
+    # === ÇOKLU İŞLEM TESPİTİ ===
+    # "ve" bağlacı varsa ve birden fazla aksiyon içeriyorsa -> reasoning
+    action_count = 0
+    file_actions = ["oluştur", "aç", "sil", "kaldır"]
+    for action in file_actions:
+        if action in text:
+            action_count += 1
+    
+    # "ve" ile bağlanmış çoklu işlemler veya birden fazla aksiyon -> reasoning
+    if " ve " in text and action_count >= 1:
+        return "reasoning"
+    
+    # "içine", "sonra" gibi sıralı işlem ifadeleri varsa -> reasoning  
+    sequential_keywords = ["içine", "sonra", "ardından", "daha sonra", "içinde"]
+    if any(kw in text for kw in sequential_keywords) and action_count >= 1:
+        return "reasoning"
+    
+    # === MATEMATİK İŞLEMLERİ ===
+    # Matematik işlemlerini reasoning model çözsün
+    for math_kw in MATH_KEYWORDS:
+        if math_kw in text:
+            return "reasoning"
+    
+    # Sayı + operatör + sayı paterni varsa -> reasoning
+    import re
+    if re.search(r"\d+\s*[\+\-\*\/\^]\s*\d+", text):
+        return "reasoning"
     
     # Hızlı aksiyon kelimeleri varsa fast
     for action in FAST_ACTION_KEYWORDS:
