@@ -10,6 +10,10 @@ from Brain.plan_executor import execute_plan, format_execution_result
 from Brain.memory import Memory
 from Skills.skills_manager import perform_skill
 from Core.display import print_debug
+from Utils.math_validator import (
+    validate_math_response, format_validation_result,
+    llm_failed_to_solve, solve_directly
+)
 from config import PRESENCE_TRIGGERS, DEBUG_MODE
 
 
@@ -43,7 +47,30 @@ def process_user_input(user_input: str, memory: Memory):
         
         if result.get("success"):
             response = format_reasoning_response(result)
-            print(f"Jarvis: {response}")
+            
+            # === LLM BAŞARISIZSA SYMPY/NUMPY DEVREYE GİRSİN ===
+            if llm_failed_to_solve(response):
+                if DEBUG_MODE:
+                    print(">> [MATH] LLM çözemedi, sympy/numpy devreye giriyor...")
+                
+                direct_result = solve_directly(user_input)
+                if direct_result["success"]:
+                    response = f"{direct_result['explanation']} Efendim."
+                    print(f"Jarvis: {response}")
+                    print(f">> [MATH] ✓ {direct_result['method']} ile hesaplandı: {direct_result['result']}")
+                else:
+                    print(f"Jarvis: {response}")
+                    if direct_result["explanation"]:
+                        print(f">> [MATH] {direct_result['explanation']}")
+            else:
+                print(f"Jarvis: {response}")
+                
+                # === MATEMATİK DOĞRULAMA (Hibrit) ===
+                validation = validate_math_response(user_input, response)
+                if validation["validated"]:
+                    validation_msg = format_validation_result(validation)
+                    if validation_msg:
+                        print(f">> [MATH] {validation_msg}")
             
             # Çalıştırılabilir adımlar varsa yürüt
             executable_steps = result.get("executable_steps")
