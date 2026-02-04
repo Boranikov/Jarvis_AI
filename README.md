@@ -90,6 +90,10 @@ Yeni özellik eklemek için:
 2. `Skills/skills_manager.py`'deki `SKILL_MAP`'e ekle
 3. `Brain/intent_engine.py`'deki `SYSTEM_PROMPT`'a action ekle
 
+## YAPIM AŞAMASINDA
+
+Hala geliştirme sürecinde olan J.A.R.V.I.S her gün yeni özellikler kazanıyor. Dosya yapısı sık sık değişebilir ve güncellemeler alabilir
+
 ## Lisans
 
 MIT License
