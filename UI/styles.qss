@@ -1,0 +1,133 @@
+/* ============================================
+   Jarvis AI - Qt Style Sheet (QSS)
+   Modern koyu tema tasarımı
+   ============================================ */
+
+/* === ANA PENCERE === */
+QMainWindow {
+    background-color: #1a1a2e;
+}
+
+QWidget {
+    font-family: 'Segoe UI', 'Arial', sans-serif;
+}
+
+/* === HEADER === */
+#header {
+    background-color: #16213e;
+    border-bottom: 2px solid #0f3460;
+}
+
+#headerTitle {
+    color: #e94560;
+    font-size: 24px;
+    font-weight: bold;
+    padding-left: 10px;
+}
+
+#statusLabel {
+    color: #4ade80;
+    font-size: 13px;
+    padding-right: 10px;
+}
+
+/* === SOHBET ALANI === */
+#chatArea {
+    background-color: #1a1a2e;
+    border: none;
+}
+
+#chatContainer {
+    background-color: #1a1a2e;
+}
+
+/* === INPUT ALANI === */
+#inputContainer {
+    background-color: #16213e;
+    border-top: 2px solid #0f3460;
+}
+
+#inputField {
+    background-color: #1a1a2e;
+    border: 2px solid #0f3460;
+    border-radius: 22px;
+    color: #eaeaea;
+    padding: 12px 20px;
+    font-size: 14px;
+    selection-background-color: #e94560;
+}
+
+#inputField:focus {
+    border-color: #e94560;
+}
+
+#inputField::placeholder {
+    color: #6a6a7a;
+}
+
+/* === GÖNDER BUTONU === */
+#sendButton {
+    background-color: #e94560;
+    color: white;
+    border: none;
+    border-radius: 22px;
+    padding: 12px 28px;
+    font-weight: bold;
+    font-size: 14px;
+    min-width: 80px;
+}
+
+#sendButton:hover {
+    background-color: #ff6b6b;
+}
+
+#sendButton:pressed {
+    background-color: #c73e54;
+}
+
+#sendButton:disabled {
+    background-color: #3a3a4a;
+    color: #6a6a7a;
+}
+
+/* === SCROLLBAR === */
+QScrollBar:vertical {
+    background-color: #1a1a2e;
+    width: 10px;
+    border-radius: 5px;
+    margin: 2px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #0f3460;
+    border-radius: 5px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #e94560;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+/* === SCROLLBAR HORIZONTAL === */
+QScrollBar:horizontal {
+    height: 0px;
+}
+
+/* === TOOLTIP === */
+QToolTip {
+    background-color: #16213e;
+    color: #eaeaea;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    padding: 5px;
+}

@@ -144,3 +144,81 @@ def process_user_input(user_input: str, memory: Memory):
     
     # === HAFIZA'YA EKLE ===
     memory.add(user_input, reply)
+
+
+def process_user_input_for_gui(user_input: str, memory: Memory) -> str:
+    """
+    GUI için kullanıcı girdisini işle ve yanıt metnini döndür.
+    
+    Args:
+        user_input: Kullanıcı mesajı
+        memory: Hafıza nesnesi
+        
+    Returns:
+        Jarvis'in yanıt metni
+    """
+    # Presence check
+    normalized = user_input.lower()
+    if any(t in normalized for t in PRESENCE_TRIGGERS):
+        return "Sizin için her zaman buradayım Efendim."
+    
+    # Routing
+    route = classify_intent(user_input)
+    emotion_context = detect_emotion(user_input)
+    
+    # === REASONING MODEL ===
+    if route == "reasoning":
+        result = process_reasoning(user_input, emotion_context)
+        
+        if result.get("success"):
+            response = format_reasoning_response(result)
+            
+            # LLM başarısızsa sympy/numpy devreye girsin
+            if llm_failed_to_solve(response):
+                direct_result = solve_directly(user_input)
+                if direct_result["success"]:
+                    response = f"{direct_result['explanation']} Efendim."
+            
+            # Çalıştırılabilir adımlar varsa yürüt
+            executable_steps = result.get("executable_steps")
+            if executable_steps:
+                execution_result = execute_plan(executable_steps)
+                execution_message = format_execution_result(execution_result)
+                if execution_message:
+                    response += f"\n\n{execution_message}"
+            
+            memory.add(user_input, response)
+            return response
+        
+        return result.get("response", "Bir sorun oluştu Efendim.")
+    
+    # === FAST MODEL (Intent Engine) ===
+    result = process_command(user_input, memory.get_history())
+    
+    action = result.get("action", "unknown")
+    reply = result.get("reply", "Efendim?")
+    path = result.get("path")
+    name = result.get("name")
+    song_name = result.get("song_name")
+    parameters = result.get("parameters", {})
+    
+    if not isinstance(parameters, dict):
+        parameters = {}
+    
+    # Skill çalıştır
+    if action not in ["small_talk", "unknown", "missing_parameters"]:
+        if path:
+            parameters["path"] = path
+        if name:
+            parameters["name"] = name
+        if song_name:
+            parameters["song_name"] = song_name
+        
+        if action in ["create_file", "create_folder", "delete_file", "delete_folder"]:
+            if not parameters.get("path"):
+                parameters["path"] = "desktop"
+        
+        perform_skill(action, parameters)
+    
+    memory.add(user_input, reply)
+    return reply
