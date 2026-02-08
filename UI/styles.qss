@@ -1,111 +1,136 @@
 /* ============================================
    Jarvis AI - Qt Style Sheet (QSS)
-   Modern koyu tema tasarımı
+   Modern Premium Gray Theme
    ============================================ */
 
 /* === ANA PENCERE === */
 QMainWindow {
-    background-color: #1a1a2e;
+    background-color: #121212;
 }
 
 QWidget {
     font-family: 'Segoe UI', 'Arial', sans-serif;
+    color: #e0e0e0;
 }
 
 /* === HEADER === */
 #header {
-    background-color: #16213e;
-    border-bottom: 2px solid #0f3460;
+    background-color: #1E1E1E;
+    border-bottom: 1px solid #333333;
 }
 
 #headerTitle {
-    color: #e94560;
+    color: #e0e0e0;
     font-size: 24px;
-    font-weight: bold;
-    padding-left: 10px;
+    font-weight: 600; /* Semi-bold */
+    letter-spacing: 1px;
 }
 
 #statusLabel {
-    color: #4ade80;
+    color: #aaaaaa;
     font-size: 13px;
-    padding-right: 10px;
+    padding-right: 15px;
 }
 
 /* === SOHBET ALANI === */
 #chatArea {
-    background-color: #1a1a2e;
+    background-color: #121212;
     border: none;
 }
 
 #chatContainer {
-    background-color: #1a1a2e;
+    background-color: #121212;
+}
+
+/* === CHAT BUBBLES === */
+/* User Bubble (Right) */
+QLabel#userBubble {
+    background-color: #333333;
+    color: #ffffff;
+    border-radius: 18px;
+    border-bottom-right-radius: 4px;
+    padding: 12px 18px;
+    font-size: 14px;
+    selection-background-color: #555555;
+}
+
+/* Jarvis Bubble (Left) */
+QLabel#jarvisBubble {
+    background-color: #1E1E1E;
+    color: #e0e0e0;
+    border: 1px solid #333333;
+    border-radius: 18px;
+    border-bottom-left-radius: 4px;
+    padding: 12px 18px;
+    font-size: 14px;
+    selection-background-color: #555555;
 }
 
 /* === INPUT ALANI === */
 #inputContainer {
-    background-color: #16213e;
-    border-top: 2px solid #0f3460;
+    background-color: #1E1E1E;
+    border-top: 1px solid #333333;
 }
 
 #inputField {
-    background-color: #1a1a2e;
-    border: 2px solid #0f3460;
-    border-radius: 22px;
-    color: #eaeaea;
-    padding: 12px 20px;
+    background-color: #252525;
+    border: 1px solid #333333;
+    border-radius: 20px;
+    color: #e0e0e0;
+    padding: 10px 20px;
     font-size: 14px;
-    selection-background-color: #e94560;
+    selection-background-color: #555555;
 }
 
 #inputField:focus {
-    border-color: #e94560;
+    border: 1px solid #555555;
+    background-color: #2a2a2a;
 }
 
 #inputField::placeholder {
-    color: #6a6a7a;
+    color: #666666;
 }
 
 /* === GÖNDER BUTONU === */
 #sendButton {
-    background-color: #e94560;
-    color: white;
+    background-color: #e0e0e0;
+    color: #121212;
     border: none;
-    border-radius: 22px;
-    padding: 12px 28px;
-    font-weight: bold;
+    border-radius: 20px;
+    padding: 10px 24px;
+    font-weight: 600;
     font-size: 14px;
     min-width: 80px;
 }
 
 #sendButton:hover {
-    background-color: #ff6b6b;
+    background-color: #ffffff;
 }
 
 #sendButton:pressed {
-    background-color: #c73e54;
+    background-color: #cccccc;
 }
 
 #sendButton:disabled {
-    background-color: #3a3a4a;
-    color: #6a6a7a;
+    background-color: #333333;
+    color: #666666;
 }
 
 /* === SCROLLBAR === */
 QScrollBar:vertical {
-    background-color: #1a1a2e;
-    width: 10px;
-    border-radius: 5px;
-    margin: 2px;
+    background-color: #121212;
+    width: 8px;
+    margin: 0px;
 }
 
 QScrollBar::handle:vertical {
-    background-color: #0f3460;
-    border-radius: 5px;
-    min-height: 30px;
+    background-color: #333333;
+    border-radius: 4px;
+    min-height: 40px;
 }
 
 QScrollBar::handle:vertical:hover {
-    background-color: #e94560;
+    background-color: #444444;
 }
 
 QScrollBar::add-line:vertical,
@@ -125,9 +150,9 @@ QScrollBar:horizontal {
 
 /* === TOOLTIP === */
 QToolTip {
-    background-color: #16213e;
-    color: #eaeaea;
-    border: 1px solid #0f3460;
+    background-color: #333333;
+    color: #e0e0e0;
+    border: 1px solid #555555;
     border-radius: 4px;
-    padding: 5px;
+    padding: 4px;
 }

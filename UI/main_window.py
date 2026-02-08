@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
         header_layout.setContentsMargins(15, 0, 15, 0)
         
         # Logo/Title
-        title = QLabel("⚡ JARVIS")
+        title = QLabel("JARVIS")
         title.setObjectName("headerTitle")
         header_layout.addWidget(title)
         
@@ -154,7 +154,7 @@ class MainWindow(QMainWindow):
         
         # Status güncelle
         self.status_label.setText("● Düşünüyor...")
-        self.status_label.setStyleSheet("color: #f59e0b; font-size: 13px; padding-right: 10px;")
+        self.status_label.setStyleSheet("color: #ffffff; font-size: 13px; padding-right: 15px;")
         
         # "Düşünüyor..." göstergesi
         self.thinking_bubble = ChatBubble("Düşünüyorum...", is_user=False)
@@ -178,7 +178,7 @@ class MainWindow(QMainWindow):
         
         # Status'u geri al
         self.status_label.setText("● Çevrimiçi")
-        self.status_label.setStyleSheet("color: #4ade80; font-size: 13px; padding-right: 10px;")
+        self.status_label.setStyleSheet("color: #aaaaaa; font-size: 13px; padding-right: 15px;")
         
         # Input'u tekrar aktif et
         self.input_field.setEnabled(True)

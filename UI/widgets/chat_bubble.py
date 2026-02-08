@@ -38,35 +38,15 @@ class ChatBubble(QWidget):
             layout.addStretch()
         
         # Stil uygula
-        self.label.setStyleSheet(self._get_bubble_style())
-    
-    def _get_bubble_style(self) -> str:
-        """Balon stilini döndür"""
-        if self.is_user:
-            return """
-                QLabel#userBubble {
-                    background-color: #0f3460;
-                    color: #eaeaea;
-                    border-radius: 18px;
-                    border-bottom-right-radius: 4px;
-                    padding: 12px 16px;
-                    font-size: 14px;
-                    font-family: 'Segoe UI', sans-serif;
-                }
-            """
-        else:
-            return """
-                QLabel#jarvisBubble {
-                    background-color: #16213e;
-                    color: #cdd6f4;
-                    border-radius: 18px;
-                    border-bottom-left-radius: 4px;
-                    padding: 12px 16px;
-                    font-size: 14px;
-                    font-family: 'Segoe UI', sans-serif;
-                    border: 1px solid #0f3460;
-                }
-            """
+        # self.label.setStyleSheet(self._get_bubble_style()) -> Artık QSS'den alıyor
+        
+    def resizeEvent(self, event):
+        """Widget yeniden boyutlandırıldığında"""
+        # Balon genişliğini pencere genişliğinin %85'i ile sınırla
+        if self.parent():
+            max_width = int(self.parent().width() * 0.85)
+            self.label.setMaximumWidth(max_width)
+        super().resizeEvent(event)
     
     def set_text(self, text: str):
         """Mesaj metnini güncelle"""
