@@ -51,6 +51,8 @@ Parameter Extraction Rules:
   * "tarkan dudu dudu çal" -> song_name="tarkan dudu dudu"
   * "sezen aksu zalim çal" -> song_name="sezen aksu zalim"
   * "ahmet kaya kendine iyi bak çal" -> song_name="ahmet kaya kendine iyi bak"
+  * "dudu çal" -> song_name="dudu"
+  * "where have you been çal" -> song_name="where have you been"
 
 Locations (Path Keywords):
 - masaüstü, masaüstüne, masaüstümde -> desktop
