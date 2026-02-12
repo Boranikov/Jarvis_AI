@@ -1,15 +1,20 @@
 """
 Jarvis AI - Reasoning Engine
+
 qwen2.5:7b modeli ile düşünme, planlama ve duygu analizi.
-Bu engine yalnızca gerektiğinde çağrılır.
 """
 
-import ollama
 import json
 import re
-from config import REASONING_MODEL, REASONING_TEMPERATURE
+from typing import Any, Optional
 
-REASONING_SYSTEM_PROMPT = """
+import ollama
+
+from config import REASONING_MODEL, REASONING_TEMPERATURE, get_logger
+
+logger = get_logger("brain.reasoning")
+
+REASONING_SYSTEM_PROMPT: str = """
 Sen Jarvis'in düşünme katmanısın. Kullanıcının karmaşık sorularını, duygusal durumunu ve planlama ihtiyaçlarını analiz edersin.
 
 Kurallar:
@@ -69,126 +74,135 @@ Output: {"type": "plan", "response": "Belgelerinize notlar ve projeler klasörle
 Sadece JSON ile yanıt ver, başka açıklama ekleme.
 """
 
+# Varsayılan alanlar (setdefault için)
+_DEFAULT_RESULT_FIELDS: dict[str, Any] = {
+    "type": "answer",
+    "response": "Efendim?",
+    "emotion_detected": None,
+    "steps": None,
+    "executable_steps": None,
+    "follow_up": None,
+}
 
-def process_reasoning(user_input: str, emotion_context: dict = None) -> dict:
+
+def _build_fallback_result(content: str, success: bool = True) -> dict[str, Any]:
+    """
+    JSON parse edilemediğinde ham yanıttan sonuç oluştur.
+
+    Args:
+        content: LLM'den gelen ham metin
+        success: İşlemin başarılı sayılıp sayılmayacağı
+
+    Returns:
+        Standart sonuç dictionary
+    """
+    return {
+        "type": "answer",
+        "response": content,
+        "emotion_detected": None,
+        "steps": None,
+        "executable_steps": None,
+        "follow_up": None,
+        "success": success,
+    }
+
+
+def process_reasoning(
+    user_input: str, emotion_context: Optional[dict[str, Any]] = None
+) -> dict[str, Any]:
     """
     Reasoning gerektiren istekleri işle.
-    
+
     Args:
         user_input: Kullanıcı girdisi
         emotion_context: Router'dan gelen duygu bilgisi (opsiyonel)
-        
+
     Returns:
         Reasoning sonucu dictionary
     """
     try:
         # Duygu bağlamını prompt'a ekle
-        context_addition = ""
+        context_addition: str = ""
         if emotion_context and emotion_context.get("detected"):
-            category = emotion_context.get("category", "neutral")
-            keywords = emotion_context.get("keywords", [])
-            context_addition = f"\n[BAĞLAM: Kullanıcı şu duyguları ifade ediyor: {', '.join(keywords)}. Kategori: {category}]"
-        
-        full_input = user_input + context_addition
-        
+            category: str = emotion_context.get("category", "neutral")
+            keywords: list[str] = emotion_context.get("keywords", [])
+            context_addition = (
+                f"\n[BAĞLAM: Kullanıcı şu duyguları ifade ediyor: "
+                f"{', '.join(keywords)}. Kategori: {category}]"
+            )
+
+        full_input: str = user_input + context_addition
+
         response = ollama.chat(
             model=REASONING_MODEL,
             messages=[
                 {"role": "system", "content": REASONING_SYSTEM_PROMPT},
-                {"role": "user", "content": full_input}
+                {"role": "user", "content": full_input},
             ],
-            options={"temperature": REASONING_TEMPERATURE}
+            options={"temperature": REASONING_TEMPERATURE},
         )
-        
-        content = response.message.content.strip()
-        
+
+        content: str = response.message.content.strip()
+
         # JSON çıkar
         match = re.search(r"\{.*\}", content, re.DOTALL)
-        
+
         if not match:
-            # JSON bulunamadıysa direkt yanıtı kullan
-            return {
-                "type": "answer",
-                "response": content,
-                "emotion_detected": None,
-                "steps": None,
-                "executable_steps": None,
-                "follow_up": None,
-                "success": True
-            }
-        
+            logger.info("Reasoning JSON bulunamadı, ham yanıt kullanılıyor")
+            return _build_fallback_result(content)
+
         # JSON parse etmeyi dene
-        json_str = match.group()
-        
+        json_str: str = match.group()
+
         try:
-            result = json.loads(json_str)
+            result: dict = json.loads(json_str)
         except json.JSONDecodeError:
             # Escape karakterlerini temizle ve tekrar dene
-            cleaned = json_str.replace("\\", "\\\\")  # Backslash'leri escape et
-            cleaned = re.sub(r'\\\\([^"\\nrtbfu])', r'\1', cleaned)  # Gereksiz escape'leri kaldır
-            
+            cleaned: str = json_str.replace("\\", "\\\\")
+            cleaned = re.sub(r'\\\\([^"\\nrtbfu])', r"\1", cleaned)
+
             try:
                 result = json.loads(cleaned)
             except json.JSONDecodeError:
-                # Hala hata varsa, direkt yanıtı kullan
-                return {
-                    "type": "answer",
-                    "response": content,
-                    "emotion_detected": None,
-                    "steps": None,
-                    "executable_steps": None,
-                    "follow_up": None,
-                    "success": True
-                }
-        
+                logger.warning("JSON parse başarısız, ham yanıt kullanılıyor")
+                return _build_fallback_result(content)
+
         result["success"] = True
-        
+
         # Varsayılan alanları doldur
-        result.setdefault("type", "answer")
-        result.setdefault("response", "Efendim?")
-        result.setdefault("emotion_detected", None)
-        result.setdefault("steps", None)
-        result.setdefault("executable_steps", None)
-        result.setdefault("follow_up", None)
-        
+        for key, default_value in _DEFAULT_RESULT_FIELDS.items():
+            result.setdefault(key, default_value)
+
         return result
-        
-    except Exception as e:
-        print(f"[ERROR] Reasoning Engine: {str(e)}")
-        return {
-            "type": "error",
-            "response": "Düşünme sürecinde bir hata oluştu Efendim.",
-            "emotion_detected": None,
-            "steps": None,
-            "follow_up": None,
-            "success": False
-        }
+
+    except ConnectionError as exc:
+        logger.error("Ollama bağlantı hatası: %s", exc)
+    except Exception as exc:
+        logger.error("Reasoning Engine hatası: %s", exc, exc_info=True)
+
+    return {
+        "type": "error",
+        "response": "Düşünme sürecinde bir hata oluştu Efendim.",
+        "emotion_detected": None,
+        "steps": None,
+        "follow_up": None,
+        "success": False,
+    }
 
 
-def format_reasoning_response(result: dict) -> str:
-    """
-    Reasoning sonucunu kullanıcıya gösterilecek formata çevir.
-    
-    Args:
-        result: process_reasoning sonucu
-        
-    Returns:
-        Formatlanmış yanıt string'i
-    """
-    response = result.get("response", "")
-    steps = result.get("steps")
-    follow_up = result.get("follow_up")
-    
-    output = response
-    
+def format_reasoning_response(result: dict[str, Any]) -> str:
+    """Reasoning sonucunu kullanıcıya gösterilecek formata çevir."""
+    parts: list[str] = [result.get("response", "")]
+
     # Plan adımları varsa ekle
+    steps: Optional[list] = result.get("steps")
     if steps and isinstance(steps, list):
-        output += "\n"
-        for step in steps:
-            output += f"\n  • {step}"
-    
+        step_lines: str = "\n".join(f"  • {step}" for step in steps)
+        parts.append(step_lines)
+
     # Takip sorusu varsa ekle
+    follow_up: Optional[str] = result.get("follow_up")
     if follow_up:
-        output += f"\n\n{follow_up}"
-    
-    return output
+        parts.append(follow_up)
+
+    return "\n\n".join(parts)

@@ -1,132 +1,144 @@
 """
 Jarvis AI - File Skills
+
 Dosya ve klasör işlemleri.
 """
 
 import os
 import shutil
+from typing import Optional
+
 from Utils.paths import get_path
+from config import get_logger
+
+logger = get_logger("skills.file")
+
+
+def _validate_params(params: dict, operation: str) -> Optional[str]:
+    """Dosya/klasör parametrelerini doğrula ve hedef yolu döndür."""
+    name: Optional[str] = params.get("name")
+    if not name:
+        logger.error("%s: İsim parametresi eksik", operation)
+        return None
+
+    location: Optional[str] = params.get("path")
+    return os.path.join(get_path(location), name)
 
 
 def create_file(params: dict) -> bool:
     """
     Dosya oluştur.
-    
+
     Args:
         params: name ve path içeren dictionary
-        
+
     Returns:
         Başarılı ise True
     """
-    name = params.get("name")
-    location = params.get("path")
-    
-    if not name:
-        print(">> [ERROR] İsim olmadan işlem yapılamaz.")
+    target: Optional[str] = _validate_params(params, "create_file")
+    if not target:
         return False
-    
-    target = os.path.join(get_path(location), name)
-    
-    if "." not in name:
+
+    # Uzantı yoksa .txt ekle
+    if "." not in os.path.basename(target):
         target += ".txt"
-    
+
     try:
         os.makedirs(os.path.dirname(target), exist_ok=True)
-        open(target, "w", encoding="utf-8").close()
-        print(f">> [OK] Dosya oluşturuldu: {target}")
+        # Context manager → exception durumunda otomatik kapatma
+        with open(target, "w", encoding="utf-8"):
+            pass
+        logger.info("Dosya oluşturuldu: %s", target)
         return True
-    except Exception as e:
-        print(f">> [ERROR] Dosya oluşturma başarısız: {str(e)}")
+    except PermissionError as exc:
+        logger.error("Dosya oluşturma izin hatası: %s", exc)
+        return False
+    except OSError as exc:
+        logger.error("Dosya oluşturma başarısız: %s", exc)
         return False
 
 
 def create_folder(params: dict) -> bool:
     """
     Klasör oluştur.
-    
+
     Args:
         params: name ve path içeren dictionary
-        
+
     Returns:
         Başarılı ise True
     """
-    name = params.get("name")
-    location = params.get("path")
-    
-    if not name:
-        print(">> [ERROR] İsim olmadan işlem yapılamaz.")
+    target: Optional[str] = _validate_params(params, "create_folder")
+    if not target:
         return False
-    
-    target = os.path.join(get_path(location), name)
-    
+
     try:
         os.makedirs(target, exist_ok=True)
-        print(f">> [OK] Klasör oluşturuldu: {target}")
+        logger.info("Klasör oluşturuldu: %s", target)
         return True
-    except Exception as e:
-        print(f">> [ERROR] Klasör oluşturma başarısız: {str(e)}")
+    except PermissionError as exc:
+        logger.error("Klasör oluşturma izin hatası: %s", exc)
+        return False
+    except OSError as exc:
+        logger.error("Klasör oluşturma başarısız: %s", exc)
         return False
 
 
 def delete_file(params: dict) -> bool:
     """
     Dosya sil.
-    
+
     Args:
         params: name ve path içeren dictionary
-        
+
     Returns:
         Başarılı ise True
     """
-    name = params.get("name")
-    location = params.get("path")
-    
-    if not name:
-        print(">> [ERROR] İsim olmadan işlem yapılamaz.")
+    target: Optional[str] = _validate_params(params, "delete_file")
+    if not target:
         return False
-    
-    target = os.path.join(get_path(location), name)
-    
+
     try:
         if os.path.exists(target):
             os.remove(target)
-            print(f">> [OK] Dosya silindi: {target}")
+            logger.info("Dosya silindi: %s", target)
             return True
         else:
-            print(f">> [WARNING] Dosya bulunamadı: {target}")
+            logger.warning("Dosya bulunamadı: %s", target)
             return False
-    except Exception as e:
-        print(f">> [ERROR] Dosya silme başarısız: {str(e)}")
+    except PermissionError as exc:
+        logger.error("Dosya silme izin hatası: %s", exc)
+        return False
+    except OSError as exc:
+        logger.error("Dosya silme başarısız: %s", exc)
         return False
 
 
 def delete_folder(params: dict) -> bool:
     """
     Klasör sil.
-    
+
     Args:
         params: name ve path içeren dictionary
-        
+
     Returns:
         Başarılı ise True
     """
-    name = params.get("name")
-    location = params.get("path")
-    
-    if not name:
-        print(">> [ERROR] İsim olmadan işlem yapılamaz.")
+    target: Optional[str] = _validate_params(params, "delete_folder")
+    if not target:
         return False
-    
-    target = os.path.join(get_path(location), name)
-    
+
     try:
         if os.path.exists(target):
             shutil.rmtree(target)
-            print(f">> [OK] Klasör silindi: {target}")
+            logger.info("Klasör silindi: %s", target)
             return True
         else:
-            print(f">> [WARNING] Klasör bulunamadı: {target}")
+            logger.warning("Klasör bulunamadı: %s", target)
             return False
-    except Exception as e:
-        print(f">> [ERROR] Klasör silme başarısız: {str(e)}")
+    except PermissionError as exc:
+        logger.error("Klasör silme izin hatası: %s", exc)
+        return False
+    except OSError as exc:
+        logger.error("Klasör silme başarısız: %s", exc)
         return False

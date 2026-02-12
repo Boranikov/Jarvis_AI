@@ -1,14 +1,20 @@
 """
-Jarvis Intent Engine
-Kullanıcı girdisini NLP ile analiz ederek aksiyon ve parametreleri çıkar.
+Jarvis AI - Intent Engine
+
+Kullanıcı girdisini NLP ile analiz ederek aksiyon ve parametreleri çıkarır.
 """
 
-import ollama
 import json
 import re
-from config import FAST_MODEL, LLM_TEMPERATURE
+from typing import Any
 
-SYSTEM_PROMPT = """
+import ollama
+
+from config import FAST_MODEL, LLM_TEMPERATURE, get_logger
+
+logger = get_logger("brain.intent")
+
+SYSTEM_PROMPT: str = """
 You are Jarvis, a local Turkish AI assistant.
 
 Rules:
@@ -95,15 +101,25 @@ Output: {"action": "web_search", "reply": "Python nedir araştırıyorum Efendim
 Respond ONLY with JSON.
 """
 
+# Varsayılan (boş/hata) yanıt şablonu
+_DEFAULT_FIELDS: dict[str, Any] = {
+    "path": None,
+    "name": None,
+    "song_name": None,
+    "original_action": None,
+    "parameters": {},
+    "reply": "Efendim?",
+}
 
-def process_command(text: str, history: list) -> dict:
+
+def process_command(text: str, history: list[dict]) -> dict[str, Any]:
     """
     Kullanıcı komutunu NLP ile işle ve intent'i tanı.
-    
+
     Args:
         text: Kullanıcı girdisi
         history: Konuşma geçmişi
-        
+
     Returns:
         Intent ve parametreleri içeren dictionary
     """
@@ -112,41 +128,43 @@ def process_command(text: str, history: list) -> dict:
             model=FAST_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": text}
+                {"role": "user", "content": text},
             ],
-            options={"temperature": LLM_TEMPERATURE}
+            options={"temperature": LLM_TEMPERATURE},
         )
 
-        content = response.message.content.strip()
+        content: str = response.message.content.strip()
         match = re.search(r"\{.*\}", content, re.DOTALL)
 
         if not match:
+            logger.warning("JSON bulunamadı, LLM yanıtı: %.100s", content)
             return {
                 "action": "unknown",
                 "reply": "Anlayamadım efendim.",
-                "parameters": {}
+                "parameters": {},
             }
 
-        result = json.loads(match.group())
-        
-        # Eksik alanları doldur
-        result.setdefault("path", None)
-        result.setdefault("name", None)
-        result.setdefault("song_name", None)
-        result.setdefault("original_action", None)
-        result.setdefault("parameters", {})
-        result.setdefault("reply", "Efendim?")
+        result: dict = json.loads(match.group())
+
+        # Eksik alanları varsayılanlarla doldur
+        for key, default_value in _DEFAULT_FIELDS.items():
+            result.setdefault(key, default_value)
 
         return result
 
-    except Exception as e:
-        print(f"[ERROR] Intent Engine: {str(e)}")
-        return {
-            "action": "unknown",
-            "reply": "Bir hata oluştu efendim.",
-            "path": None,
-            "name": None,
-            "original_action": None,
-            "parameters": {}
-        }
+    except json.JSONDecodeError as exc:
+        logger.error("JSON parse hatası: %s", exc)
+    except ConnectionError as exc:
+        logger.error("Ollama bağlantı hatası: %s", exc)
+    except Exception as exc:
+        # Beklenmeyen hatalar için son savunma hattı
+        logger.error("Intent Engine beklenmeyen hata: %s", exc, exc_info=True)
 
+    return {
+        "action": "unknown",
+        "reply": "Bir hata oluştu efendim.",
+        "path": None,
+        "name": None,
+        "original_action": None,
+        "parameters": {},
+    }
