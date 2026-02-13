@@ -35,6 +35,7 @@ _FAST_ACTION_KEYWORDS: frozenset[str] = frozenset({
     "çal", "müzik", "şarkı", "spotify",
     "ara", "araştır", "google", "internette",
     "merhaba", "selam", "günaydın", "nasılsın", "naber",
+    "hava","hava durumu"
 })
 
 # Çok kelimelik hızlı aksiyon trigger'ları

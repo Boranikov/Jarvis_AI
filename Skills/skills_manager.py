@@ -13,6 +13,7 @@ from typing import Callable
 from Skills.file_skills import create_file, create_folder, delete_file, delete_folder
 from Skills.music_skills import play_music, pause_music, resume_music, get_current_track, next_track
 from Skills.web_skills import web_search
+from Skills.weather_skills import get_weather
 from config import get_logger
 
 logger = get_logger("skills.manager")
@@ -29,6 +30,7 @@ SKILL_MAP: dict[str, Callable[[dict], bool]] = {
     "resume_music": resume_music,
     "get_current_track": get_current_track,
     "next_track": next_track,
+    "get_weather": get_weather,
 }
 
 
