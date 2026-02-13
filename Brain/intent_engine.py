@@ -108,6 +108,9 @@ Output: {"action": "resume_music", "reply": "Müziği devam ettiriyorum Efendim.
 User: "Şu an ne çalıyor"
 Output: {"action": "get_current_track", "reply": "Şu an çalan şarkı: {song_name} - {artist_name} Efendim.", "path": null, "name": null, "original_action": null, "parameters": {}}
 
+User: "Diğer şarkıya geç"
+Output: {"action": "next_track", "reply": "Sıradaki şarkıyı çalıyorum Efendim.", "path": null, "name": null, "original_action": null, "parameters": {}}
+
 Respond ONLY with JSON.
 """
 

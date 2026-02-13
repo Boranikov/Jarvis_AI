@@ -53,6 +53,25 @@ def _get_active_device(sp: spotipy.Spotify) -> Optional[str]:
         return None
 
 
+def _launch_spotify_and_wait(sp: spotipy.Spotify, timeout: int = 10) -> Optional[str]:
+    """Spotify'ı başlat ve cihaz aktif olana kadar bekle."""
+    try:
+        os.startfile("spotify:")
+        logger.info("Spotify başlatılıyor...")
+        import time
+        for i in range(timeout):
+            time.sleep(1)
+            device_id = _get_active_device(sp)
+            if device_id:
+                logger.info("Spotify cihazı bulundu (%d saniye)", i + 1)
+                return device_id
+        logger.warning("Spotify %d saniyede cihaz sağlayamadı", timeout)
+        return None
+    except Exception as e:
+        logger.error("Spotify başlatma hatası: %s", e)
+        return None
+
+
 def play_music(params: dict) -> bool:
     """
     Spotify'da müzik ara ve çal.
@@ -93,12 +112,16 @@ def play_music(params: dict) -> bool:
             sp.start_playback(device_id=device_id, uris=[f"spotify:track:{track_id}"])
             logger.info("Çalıyor: %s - %s", track_name, artist_name)
         else:
-            # Cihaz yoksa web'de aç
-            if track_url:
+            # Spotify açıksa değilse Spotify'ı başlat ve bekle
+            device_id = _launch_spotify_and_wait(sp)
+            if device_id:
+                sp.start_playback(device_id=device_id, uris=[f"spotify:track:{track_id}"])
+                logger.info("Spotify açıldı, çalıyor: %s - %s", track_name, artist_name)
+            elif track_url:
                 webbrowser.open(track_url)
                 logger.info("Cihaz bulunamadı, web'de açılıyor: %s - %s", track_name, artist_name)
             else:
-                logger.warning("Cihaz ve URL bulunamadı: %s", song_name)
+                logger.warning("Spotify başlatılamadı ve URL bulunamadı")
                 return False
 
         return True
@@ -133,6 +156,16 @@ def resume_music(params: dict = None) -> bool:
         logger.error("Devam etme hatası: %s", e)
         return False
 
+def next_track(params: dict = None) -> bool:
+    """Çalan müziği değiştirir."""
+    try:
+        sp = _get_spotify()
+        sp.next_track()
+        logger.info("Müzik değiştirildi")
+        return True
+    except Exception as e:
+        logger.error("Müzik değiştirme hatası: %s", e)
+        return False
 
 def get_current_track(params: dict = None) -> Optional[str]:
     """Şu an çalan şarkının bilgilerini formatlanmış string olarak döndür."""
