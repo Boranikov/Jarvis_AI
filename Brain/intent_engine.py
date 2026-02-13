@@ -30,6 +30,7 @@ Allowed actions:
 - delete_file
 - delete_folder
 - play_music
+- pause_music
 - web_search
 - small_talk
 - missing_parameters
@@ -97,6 +98,15 @@ Output: {"action": "small_talk", "reply": "İyiyim, teşekkürler Efendim. Size 
 
 User: "Jarvis pyton nedir araştır"
 Output: {"action": "web_search", "reply": "Python nedir araştırıyorum Efendim.", "path": null, "name": "python nedir", "original_action": null, "parameters": {}}
+
+User: "Şarkıyı durdur"
+Output: {"action": "pause_music", "reply": "Müziği durduruyorum Efendim.", "path": null, "name": null, "original_action": null, "parameters": {}}
+
+User: "Müziği devam ettir"
+Output: {"action": "resume_music", "reply": "Müziği devam ettiriyorum Efendim.", "path": null, "name": null, "original_action": null, "parameters": {}}
+
+User: "Şu an ne çalıyor"
+Output: {"action": "get_current_track", "reply": "Şu an çalan şarkı: {song_name} - {artist_name} Efendim.", "path": null, "name": null, "original_action": null, "parameters": {}}
 
 Respond ONLY with JSON.
 """

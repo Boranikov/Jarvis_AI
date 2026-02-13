@@ -1,2 +1,4 @@
 ollama
 PyQt6>=6.6.0
+spotipy>=2.23.0
+python-dotenv>=1.0.0

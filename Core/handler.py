@@ -228,7 +228,13 @@ def _handle_fast_model(
 
     # Skill çalıştır
     if action not in _NON_SKILL_ACTIONS:
-        perform_skill(action, parameters)
+        skill_result = perform_skill(action, parameters)
+
+        # get_current_track string döndürür — reply'ı güncelle
+        if action == "get_current_track" and isinstance(skill_result, str):
+            reply = f"Şu an çalan: {skill_result} Efendim."
+            if mode == OutputMode.CLI:
+                print(f"Jarvis: {reply}")
 
     # Hafızaya ekle
     memory.add(user_input, reply)
