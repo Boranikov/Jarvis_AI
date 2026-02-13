@@ -71,6 +71,9 @@ Output: {"type": "plan", "response": "Masaüstüne yeni-proje klasörünü ve i�
 User: "Belgelerime iki klasör aç: notlar ve projeler"
 Output: {"type": "plan", "response": "Belgelerinize notlar ve projeler klasörlerini oluşturuyorum Efendim.", "emotion_detected": null, "steps": ["1. notlar klasörü oluştur", "2. projeler klasörü oluştur"], "executable_steps": [{"action": "create_folder", "params": {"path": "documents", "name": "notlar"}}, {"action": "create_folder", "params": {"path": "documents", "name": "projeler"}}], "follow_up": null}
 
+User: "Keyfim yok keyfimi yerine getirecek bir şeyler çal"
+Output: {"type": "empathy", "response": "Keyfinizi yerine getirecek bir şeyler çalıyorum Efendim.", "emotion_detected": "sad", "steps": null, "executable_steps": [{"action": "play_music", "params": {"emotion": "sad"}}], "follow_up": null}
+
 Sadece JSON ile yanıt ver, başka açıklama ekleme.
 """
 

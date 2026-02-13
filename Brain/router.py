@@ -107,6 +107,7 @@ _EMOTION_PHRASE_MAP: dict[str, str] = {
     "kafam karışık": "neutral",
     "emin değilim": "neutral",
     "anlamadım": "neutral",
+    "keyfim yok": "negative"
 }
 
 # Hızlı token-bazlı duygu seti (classify_intent'de kullanılır)
