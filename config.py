@@ -36,6 +36,7 @@ def get_logger(name: str) -> logging.Logger:
 # Model Ayarları
 FAST_MODEL: str = "qwen2.5:3b"
 REASONING_MODEL: str = "qwen2.5:7b"
+CODING_MODEL: str = "qwen2.5-coder:14b"
 LLM_TEMPERATURE: float = 0.1
 REASONING_TEMPERATURE: float = 0.3
 

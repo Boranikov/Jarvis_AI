@@ -10,6 +10,7 @@ from typing import Any, Optional
 from Brain.router import classify_intent, detect_emotion
 from Brain.intent_engine import process_command
 from Brain.reasoning_engine import process_reasoning, format_reasoning_response
+from Brain.coding_engine import process_coding_task
 from Brain.plan_executor import execute_plan, format_execution_result
 from Brain.memory import Memory
 from Skills.skills_manager import perform_skill
@@ -89,7 +90,10 @@ def process_input(
 
     logger.debug(
         "Model: %s",
-        "qwen2.5:7b (reasoning)" if route == "reasoning" else "qwen2.5:3b (fast)",
+        {
+            "coding": "qwen2.5-coder:14b (coding)",
+            "reasoning": "qwen2.5:7b (reasoning)",
+        }.get(route, "qwen2.5:3b (fast)"),
     )
     if emotion_context.get("detected"):
         logger.debug(
@@ -97,6 +101,10 @@ def process_input(
             emotion_context.get("category"),
             emotion_context.get("keywords"),
         )
+
+    # Coding Model
+    if route == "coding":
+        return _handle_coding(user_input, memory, mode)
 
     # Reasoning Model
     if route == "reasoning":
@@ -244,6 +252,59 @@ def _handle_fast_model(
 
 # Geriye uyumluluk
 # Mevcut kodların bozulmaması için eski fonksiyon isimleri korunuyor.
+
+
+def _handle_coding(
+    user_input: str,
+    memory: Memory,
+    mode: OutputMode,
+) -> Optional[str]:
+    """
+    Coding model (qwen2.5-coder:14b) ile kodlama isteklerini işle.
+
+    Agentic döngü: Model dosya okuma/yazma/listeleme araçlarını
+    kendi kendine çağırarak görevi tamamlar.
+
+    Args:
+        user_input: Kullanıcı girdisi
+        memory: Hafıza nesnesi
+        mode: Çıktı modu
+
+    Returns:
+        GUI modunda yanıt string'i, CLI modunda None
+    """
+    if mode == OutputMode.CLI:
+        print("Jarvis: Kodlama motorunu başlatıyorum Efendim...")
+
+    # GUI modunda onay callback'i
+    confirm_fn = None
+    if mode == OutputMode.GUI:
+        # GUI için şimdilik otomatik onay (ileride GUI dialog eklenebilir)
+        confirm_fn = None  # CLI varsayılanı kullanır
+
+    result: dict = process_coding_task(
+        user_input=user_input,
+        confirm_fn=confirm_fn,
+    )
+
+    response: str = result.get("response", "İşlem tamamlandı Efendim.")
+    actions: list = result.get("actions_taken", [])
+
+    # Yapılan işlemleri logla
+    if actions:
+        logger.debug(
+            "Coding: %d araç çağrısı yapıldı: %s",
+            len(actions),
+            ", ".join(a.get("tool", "?") for a in actions),
+        )
+
+    if mode == OutputMode.CLI:
+        print(f"Jarvis: {response}")
+
+    # Hafızaya ekle
+    memory.add(user_input, response)
+
+    return response if mode == OutputMode.GUI else None
 
 
 def process_user_input(user_input: str, memory: Memory) -> None:

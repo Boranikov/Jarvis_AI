@@ -110,15 +110,35 @@ _EMOTION_PHRASE_MAP: dict[str, str] = {
     "keyfim yok": "negative"
 }
 
+# Kodlama kelimeleri (token match)
+_CODING_KEYWORDS: frozenset[str] = frozenset({
+    "kodla", "fonksiyon", "class", "bug",
+    "refactor", "debug", "script", "import",
+    "değişken", "metod", "modül",
+})
+
+# Çok kelimelik kodlama ifadeleri (substring match)
+_CODING_PHRASE_TRIGGERS: tuple[str, ...] = (
+    "kod yaz", "optimize et", "hata bul", "bug fix",
+    "dosyasını düzelt", "dosyasını oku", "kodu düzelt",
+    "fonksiyon ekle", "class ekle", "refactor et",
+)
+
 # Hızlı token-bazlı duygu seti (classify_intent'de kullanılır)
 _EMOTION_ALL_WORDS: frozenset[str] = frozenset(_EMOTION_KEYWORD_MAP.keys())
 
 
 def classify_intent(user_input: str) -> str:
-    """Kullanıcı girdisini analiz edip 'reasoning' veya 'fast' döndürür."""
+    """Kullanıcı girdisini analiz edip 'coding', 'reasoning' veya 'fast' döndürür."""
     text: str = user_input.lower().strip()
     tokens: list[str] = text.split()
     token_set: frozenset[str] = frozenset(tokens)
+
+    # 0) Kodlama tespiti (en yüksek öncelik)
+    if token_set & _CODING_KEYWORDS:
+        return "coding"
+    if any(phrase in text for phrase in _CODING_PHRASE_TRIGGERS):
+        return "coding"
 
     # 1) Soru işareti → genelde reasoning
     if "?" in text:

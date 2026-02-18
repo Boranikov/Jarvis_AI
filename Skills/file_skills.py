@@ -58,6 +58,99 @@ def create_file(params: dict) -> bool:
         return False
 
 
+def read_file(params: dict) -> bool:
+    """
+    Dosya oku.
+
+    Args:
+        params: {name: test.py, path: /home/boran/Desktop}
+
+    Returns:
+        Başarılı ise True
+    """
+    target: Optional[str] = _validate_params(params, "read_file")
+    if not target:
+        return ("HATA: Dosya yolu bulunamadı")
+    try:
+        with open(target, "r", encoding="utf-8") as file:
+            content = file.read()
+            logger.info("Dosya içeriği okundu: %s", target)
+            return content
+    except FileNotFoundError:
+        logger.error("Dosya bulunamadı: %s", target)
+        return False
+    except PermissionError as exc:
+        logger.error("Dosya okuma izin hatası: %s", exc)
+        return False
+    except OSError as exc:
+        logger.error("Dosya okuma başarısız: %s", exc)
+        return False
+
+
+def write_to_file(params: dict) -> bool:
+    """
+    Dosyaya yaz.
+
+    Args:
+        params: {name: test.py, path: /home/boran/Desktop, content: "Merhaba"}
+
+    Returns:
+        Başarılı ise True
+    """
+    target: Optional[str] = _validate_params(params, "write_to_file")
+    if not target:
+        return False
+    
+    content: Optional[str] = params.get("content")
+    if content is None:
+        logger.error("Dosyaya yazılamadı: İçerik parametresi eksik")
+        return False
+    
+    try:
+        # Dosya yoksa oluştur
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        # Dosyaya yaz
+        with open(target, "w", encoding="utf-8") as file:
+            file.write(content)
+            logger.info("Dosyaya yazıldı: %s", target)
+            return True
+    except PermissionError as exc:
+        logger.error("Dosyaya yazma izin hatası: %s", exc)
+        return False
+    except OSError as exc:
+        logger.error("Dosyaya yazma başarısız: %s", exc)
+        return False
+
+
+def list_dir_recursive(params: dict) -> str:
+    """
+
+    Klasör altındaki dosya yapısını ağaç şeklinde listeler.
+    Params: {"path": "..."} veya {"path": "desktop", "name": "proje"}
+
+    Returns:
+        Başarılı ise True
+    """
+    # name opsiyonel, sadece path verilmiş olabilir
+    if params.get("name"):
+        target = _validate_params(params, "list_dir")
+    else:
+        target = get_path(params.get("path"))
+    if not target or not os.path.exists(target):
+         return "HATA: Klasör bulunamadı."
+    result = []
+    for root, dirs, files in os.walk(target):
+        level = root.replace(target, '').count(os.sep)
+        indent = ' ' * 4 * (level)
+        result.append(f"{indent}{os.path.basename(root)}/")
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            result.append(f"{subindent}{f}")
+            
+    return "\n".join(result)
+
+
+
 def create_folder(params: dict) -> bool:
     """
     Klasör oluştur.
