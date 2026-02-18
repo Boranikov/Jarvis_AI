@@ -1,4 +1,13 @@
-ollama
+# Jarvis AI - Python Bağımlılıkları
+
+# LLM (Ollama Python client)
+ollama>=0.4.0
+
+# GUI
 PyQt6>=6.6.0
+
+# Müzik (Spotify API)
 spotipy>=2.23.0
+
+# Ortam değişkenleri (.env)
 python-dotenv>=1.0.0
