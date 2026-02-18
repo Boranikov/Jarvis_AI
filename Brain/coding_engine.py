@@ -27,7 +27,7 @@ _DESTRUCTIVE_TOOLS: frozenset[str] = frozenset({
 })
 
 # Varsayılan proje dizini
-_DEFAULT_PROJECT_PATH: str = "C:\\Users\\boran\\Desktop"
+_DEFAULT_PROJECT_PATH: str = "Desktop"
 
 SYSTEM_PROMPT: str = """
 SEN: Jarvis'in Kıdemli Baş Yazılım Mühendisisin (Lead Software Engineer).
