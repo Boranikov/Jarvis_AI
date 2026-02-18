@@ -10,16 +10,19 @@ from typing import Any, Optional
 
 import ollama
 
-from config import CODING_MODEL, get_logger
+from config import CODING_MODEL, get_logger, MAX_TOOL_ITERATIONS, MAX_FORMAT_RETRIES, SAFETY_MODE
 from Skills.skills_manager import perform_skill
 
 logger = get_logger("brain.coding")
 
 # Maksimum araç çağrısı döngüsü (sonsuz döngü koruması)
-_MAX_TOOL_ITERATIONS: int = 15
+_MAX_TOOL_ITERATIONS: int = MAX_TOOL_ITERATIONS
 
 # JSON formatı bozulduğunda tekrar deneme sayısı
-_MAX_FORMAT_RETRIES: int = 2
+_MAX_FORMAT_RETRIES: int = MAX_FORMAT_RETRIES
+
+# Güvenlik modu
+_SAFETY_MODE: bool = SAFETY_MODE
 
 # Yazma/silme işlemleri — kullanıcı onayı gerektirir
 _DESTRUCTIVE_TOOLS: frozenset[str] = frozenset({
@@ -182,7 +185,7 @@ def _call_model(messages: list[dict]) -> dict[str, Any]:
             retry_response = ollama.chat(
                 model=CODING_MODEL,
                 messages=retry_messages,
-                options={"temperature": 0.1},  # Daha deterministik
+                options={"temperature": 0.1},  
             )
 
             retry_content: str = retry_response.message.content.strip()
@@ -268,15 +271,16 @@ def process_coding_task(
             break
 
         # --- Yıkıcı işlemler: Onay iste ---
-        if tool in _DESTRUCTIVE_TOOLS:
-            # Onay bilgisi hazırla
-            file_name: str = args.get("name", "bilinmeyen")
-            content_preview: str = ""
-            if tool == "write_to_file":
-                full_content = args.get("content", "")
-                content_preview = full_content[:500]
-                if len(full_content) > 500:
-                    content_preview += "\n... (devamı var)"
+        if _SAFETY_MODE:
+            if tool in _DESTRUCTIVE_TOOLS:
+                # Onay bilgisi hazırla
+                file_name: str = args.get("name", "bilinmeyen")
+                content_preview: str = ""
+                if tool == "write_to_file":
+                    full_content = args.get("content", "")
+                    content_preview = full_content[:500]
+                    if len(full_content) > 500:
+                        content_preview += "\n... (devamı var)"
 
             # Onay mekanizması
             approved: bool = False

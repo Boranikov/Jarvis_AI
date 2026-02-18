@@ -76,5 +76,10 @@ MISSING_QUESTIONS: MappingProxyType = MappingProxyType({
 MEMORY_HISTORY_LIMIT: int = 10
 DEBUG_MODE: bool = True
 
+# Coding Engine Güvenlik Ayarları
+MAX_TOOL_ITERATIONS: int = 15
+MAX_FORMAT_RETRIES: int = 2
+SAFETY_MODE: bool = False
+
 # Çıkış Komutları
 EXIT_COMMANDS: FrozenSet[str] = frozenset({"çık", "exit", "quit"})
