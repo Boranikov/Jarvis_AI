@@ -1,4 +1,4 @@
-# 🤖 Jarvis AI Assistant
+# 🤖 Jarvis AI Assistant ( Just A Rather Very Intelligent Servent)
 
 Türkçe konuşan, tamamen yerel olarak çalışan (Local LLM), modüler ve genişletilebilir bir kişisel AI asistanı.
 
