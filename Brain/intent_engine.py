@@ -112,7 +112,7 @@ Output: {"action": "get_current_track", "reply": "Şu an çalan şarkı: {song_n
 User: "Diğer şarkıya geç"
 Output: {"action": "next_track", "reply": "Sıradaki şarkıyı çalıyorum Efendim.", "path": null, "name": null, "original_action": null, "parameters": {}}
 
-Respond ONLY with JSON.
+RESPOND ONLY WITH JSON.
 """
 
 # Varsayılan (boş/hata) yanıt şablonu
