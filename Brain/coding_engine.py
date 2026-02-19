@@ -15,28 +15,13 @@ from Skills.skills_manager import perform_skill
 
 logger = get_logger("brain.coding")
 
-# Maksimum araç çağrısı döngüsü (sonsuz döngü koruması)
-_MAX_TOOL_ITERATIONS: int = MAX_TOOL_ITERATIONS
-
-# JSON formatı bozulduğunda tekrar deneme sayısı
-_MAX_FORMAT_RETRIES: int = MAX_FORMAT_RETRIES
-
-# Güvenlik modu
-_SAFETY_MODE: bool = SAFETY_MODE
-
-# Yazma/silme işlemleri — kullanıcı onayı gerektirir
-_DESTRUCTIVE_TOOLS: frozenset[str] = frozenset({
-    "write_to_file", "delete_file",
-})
-
-# Varsayılan proje dizini
+_DESTRUCTIVE_TOOLS: frozenset[str] = frozenset({"write_to_file", "delete_file"})
 _DEFAULT_PROJECT_PATH: str = "Desktop"
 
 SYSTEM_PROMPT: str = """
 SEN: Jarvis'in Kıdemli Baş Yazılım Mühendisisin (Lead Software Engineer).
 GÖREVİN: Kullanıcının kodlama isteklerini çözmek, proje oluşturmak, hataları ayıklamak ve tam çalışan kod yazmak.
 MODELİN: Qwen 2.5 Coder (14B).
-
 VARSAYILAN PROJE YOLU: {default_path}
 Kullanıcı başka bir yol belirtmezse projeleri bu yolda oluştur.
 
@@ -85,14 +70,13 @@ Birden fazla dosya yazman gerekiyorsa:
 Cevabın HER ZAMAN ve SADECE geçerli bir JSON objesi olmalıdır.
 Markdown kullanma. Açıklama ekleme. Sadece JSON.
 
---- ÇIKTI FORMATI ---
-{{
-  "thought": "Düşünce sürecin",
+--- ÇIKTI FORMATI (SADECE JSON) ---
+{{{{
+  "thought": "...",
   "tool": "write_to_file",
-  "args": {{"path": "...", "name": "...", "content": "..."}},
-  "response": "Sadece final_answer için mesaj"
-}}
-
+  "args": {{...}},
+  "response": "Sadece final_answer için"
+}}}}
 
 --- ÖRNEKLER ---
 
@@ -173,7 +157,7 @@ def _call_model(messages: list[dict]) -> dict[str, Any]:
         # --- JSON bulunamadı: Modele format hatası gönder ve tekrar dene ---
         logger.warning("Coding JSON bulunamadı, tekrar deneniyor...")
 
-        for retry in range(_MAX_FORMAT_RETRIES):
+        for retry in range(MAX_FORMAT_RETRIES):
             logger.debug("Format düzeltme denemesi: %d", retry + 1)
 
             # Hatalı yanıtı ve düzeltme talimatını ekle
@@ -254,7 +238,7 @@ def process_coding_task(
     actions_taken: list[dict] = []
     final_response: str = ""
 
-    for iteration in range(_MAX_TOOL_ITERATIONS):
+    for iteration in range(MAX_TOOL_ITERATIONS):
         logger.debug("Coding döngü iterasyonu: %d", iteration + 1)
 
         result: dict = _call_model(messages)
@@ -271,7 +255,7 @@ def process_coding_task(
             break
 
         # --- Yıkıcı işlemler: Onay iste ---
-        if _SAFETY_MODE and tool in _DESTRUCTIVE_TOOLS:
+        if SAFETY_MODE and tool in _DESTRUCTIVE_TOOLS:
             # Onay bilgisi hazırla
             file_name: str = args.get("name", "bilinmeyen")
             content_preview: str = ""
@@ -321,7 +305,7 @@ def process_coding_task(
 
     else:
         # Döngü limiti aşıldı
-        logger.warning("Coding döngüsü maksimum iterasyona ulaştı (%d)", _MAX_TOOL_ITERATIONS)
+        logger.warning("Coding döngüsü maksimum iterasyona ulaştı (%d)", MAX_TOOL_ITERATIONS)
         final_response = "Maksimum adım sayısına ulaşıldı Efendim. Yapılan işlemler kaydedildi."
 
     return {

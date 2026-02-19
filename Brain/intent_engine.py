@@ -76,6 +76,7 @@ JSON FORMAT:
   "name": "string or null",
   "original_action": "string or null",
   "song_name": "string or null",
+  "query": "string or null",
   "parameters": {}
 }
 
@@ -97,7 +98,7 @@ User: "Nasılsın Jarvis"
 Output: {"action": "small_talk", "reply": "İyiyim, teşekkürler Efendim. Size nasıl yardımcı olabilirim?", "path": null, "name": null, "original_action": null, "parameters": {}}
 
 User: "Jarvis pyton nedir araştır"
-Output: {"action": "web_search", "reply": "Python nedir araştırıyorum Efendim.", "path": null, "name": "python nedir", "original_action": null, "parameters": {}}
+Output: {"action": "web_search", "reply": "Python nedir araştırıyorum Efendim.", "path": null, "name": null, "query": "python nedir", "song_name": null, "original_action": null, "parameters": {}}
 
 User: "Şarkıyı durdur"
 Output: {"action": "pause_music", "reply": "Müziği durduruyorum Efendim.", "path": null, "name": null, "original_action": null, "parameters": {}}
@@ -119,6 +120,7 @@ _DEFAULT_FIELDS: dict[str, Any] = {
     "path": None,
     "name": None,
     "song_name": None,
+    "query": None,
     "original_action": None,
     "parameters": {},
     "reply": "Efendim?",
@@ -137,10 +139,16 @@ def process_command(text: str, history: list[dict]) -> dict[str, Any]:
         Intent ve parametreleri içeren dictionary
     """
     try:
+        history_msgs: list[dict] = []
+        for entry in history[-3:]:
+            history_msgs.append({"role": "user", "content": entry.get("user", "")})
+            history_msgs.append({"role": "assistant", "content": entry.get("jarvis", "")})
+
         response = ollama.chat(
             model=FAST_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
+                *history_msgs,
                 {"role": "user", "content": text},
             ],
             options={"temperature": LLM_TEMPERATURE},

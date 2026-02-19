@@ -162,7 +162,7 @@ def classify_intent(user_input: str) -> str:
 
     # 4) Çoklu işlem tespiti
     action_count: int = len(token_set & _FILE_ACTION_KEYWORDS)
-    if action_count >= 1:
+    if action_count >= 2:
         # "ve" bağlacı ile çoklu işlem
         if " ve " in text:
             return "reasoning"

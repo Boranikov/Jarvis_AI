@@ -50,10 +50,10 @@ PRESENCE_TRIGGERS: tuple[str, ...] = (
 
 # Gerekli Parametreler
 REQUIRED_PARAMS: MappingProxyType = MappingProxyType({
-    "create_file": ("name", "path"),
-    "create_folder": ("name", "path"),
-    "delete_file": ("name", "path"),
-    "delete_folder": ("name", "path"),
+    "create_file": ("name",),
+    "create_folder": ("name",),
+    "delete_file": ("name",),
+    "delete_folder": ("name",),
 })
 
 # Eksik Parametre Soruları

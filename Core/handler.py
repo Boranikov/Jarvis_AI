@@ -40,13 +40,6 @@ class OutputMode(Enum):
     GUI = "gui"
 
 
-def handle_presence_check(user_input: str) -> bool:
-    """Sistem varlık kontrolü."""
-    normalized: str = user_input.lower()
-    if any(trigger in normalized for trigger in PRESENCE_TRIGGERS):
-        print("Jarvis: Sizin için her zaman buradayım efendim.")
-        return True
-    return False
 
 
 def _build_fast_model_params(result: dict[str, Any], user_input: str = "") -> dict[str, Any]:
@@ -58,7 +51,7 @@ def _build_fast_model_params(result: dict[str, Any], user_input: str = "") -> di
         parameters = {}
 
     # Üst seviye alanları parametrelere aktar
-    for key in ("path", "name", "song_name"):
+    for key in ("path", "name", "song_name", "query"):
         value: Optional[str] = result.get(key)
         if value:
             parameters[key] = value
@@ -121,9 +114,7 @@ def process_input(
             return None
         return question
 
-    # Routing
     route: str = classify_intent(user_input)
-    emotion_context: dict = detect_emotion(user_input)
 
     logger.debug(
         "Model: %s",
@@ -132,16 +123,13 @@ def process_input(
             "reasoning": "qwen2.5:7b (reasoning)",
         }.get(route, "qwen2.5:3b (fast)"),
     )
-    if emotion_context.get("detected"):
-        logger.debug(
-            "Duygu: %s — %s",
-            emotion_context.get("category"),
-            emotion_context.get("keywords"),
-        )
 
     # Coding Model
     if route == "coding":
         return _handle_coding(user_input, memory, mode)
+        return _handle_coding(user_input, memory, mode)
+
+    emotion_context: dict = detect_emotion(user_input)
 
     # Reasoning Model
     if route == "reasoning":
@@ -180,8 +168,9 @@ def _handle_reasoning(
 
     response: str = format_reasoning_response(result)
 
-    # Matematik doğrulama
-    if llm_failed_to_solve(response):
+    # Matematik doğrulama (sadece input matematik içeriyorsa)
+    _has_math: bool = any(c in user_input for c in "0123456789+-*/=")
+    if _has_math and llm_failed_to_solve(response):
         logger.debug("LLM çözemedi, sympy/numpy devreye giriyor...")
         direct_result: dict = solve_directly(user_input)
         if direct_result["success"]:
@@ -199,15 +188,17 @@ def _handle_reasoning(
                 print(f"Jarvis: {response}")
                 if direct_result["explanation"]:
                     logger.debug("Math: %s", direct_result["explanation"])
-    else:
+    elif _has_math:
         if mode == OutputMode.CLI:
             print(f"Jarvis: {response}")
-        # Matematik doğrulama (hibrit)
         validation: dict = validate_math_response(user_input, response)
         if validation["validated"]:
             validation_msg: str = format_validation_result(validation)
             if validation_msg:
                 logger.debug("Math: %s", validation_msg)
+    else:
+        if mode == OutputMode.CLI:
+            print(f"Jarvis: {response}")
 
     # Çalıştırılabilir adımlar (plan executor)
     executable_steps: Optional[list] = result.get("executable_steps")
@@ -334,11 +325,9 @@ def _handle_coding(
     if mode == OutputMode.CLI:
         print("Jarvis: Kodlama motorunu başlatıyorum Efendim...")
 
-    # GUI modunda onay callback'i
     confirm_fn = None
     if mode == OutputMode.GUI:
-        # GUI için şimdilik otomatik onay (ileride GUI dialog eklenebilir)
-        confirm_fn = None  # CLI varsayılanı kullanır
+        confirm_fn = lambda tool, name, preview: True
 
     result: dict = process_coding_task(
         user_input=user_input,
@@ -363,13 +352,3 @@ def _handle_coding(
     memory.add(user_input, response)
 
     return response if mode == OutputMode.GUI else None
-
-
-def process_user_input(user_input: str, memory: Memory) -> None:
-    """Geriye uyumluluk: CLI modu için process_input wrapper."""
-    process_input(user_input, memory, OutputMode.CLI)
-
-
-def process_user_input_for_gui(user_input: str, memory: Memory) -> str:
-    """Geriye uyumluluk: GUI modu için process_input wrapper."""
-    return process_input(user_input, memory, OutputMode.GUI) or ""

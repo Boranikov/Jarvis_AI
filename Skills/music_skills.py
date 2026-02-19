@@ -3,69 +3,38 @@ Jarvis AI - Music Skills
 
 Spotify API üzerinden müzik çalma işlemleri.
 """
-
-import webbrowser
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 import os
-from dotenv import load_dotenv
+import random
+import time
+import threading
+import webbrowser
 from typing import Optional
 
-import random
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+from dotenv import load_dotenv
 
-from Utils.helpers import clean_song_name
 from config import get_logger
 
 logger = get_logger("skills.music")
-
-load_dotenv()
-
-SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
-SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
-SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI")
 
 _sp: Optional[spotipy.Spotify] = None
 
 # Duygu → Spotify genre/audio-feature mapping
 # Üzgün kullanıcıya neşeli şarkılar, mutlu kullanıcıya enerjik şarkılar vb.
 _EMOTION_MUSIC_MAP: dict[str, dict] = {
-    "sad": {
-        "genres": ["pop", "turkish pop", "chill"],
-        "target_valence": 0.8,    # neşeli
-        "target_energy": 0.7,     # enerjik
-    },
     "negative": {
         "genres": ["pop", "turkish pop", "chill"],
         "target_valence": 0.8,
         "target_energy": 0.7,
-    },
-    "happy": {
-        "genres": ["dance", "pop", "party"],
-        "target_valence": 0.9,
-        "target_energy": 0.85,
     },
     "positive": {
         "genres": ["dance", "pop", "party"],
         "target_valence": 0.9,
         "target_energy": 0.85,
     },
-    "frustrated": {
-        "genres": ["rock", "alternative", "metal"],
-        "target_valence": 0.5,
-        "target_energy": 0.9,
-    },
-    "angry": {
-        "genres": ["rock", "metal", "hard-rock"],
-        "target_valence": 0.4,
-        "target_energy": 0.95,
-    },
     "neutral": {
         "genres": ["indie", "acoustic", "chill"],
-        "target_valence": 0.6,
-        "target_energy": 0.5,
-    },
-    "curious": {
-        "genres": ["indie", "jazz", "electronic"],
         "target_valence": 0.6,
         "target_energy": 0.5,
     },
@@ -80,13 +49,14 @@ _DEFAULT_EMOTION_CONFIG: dict = {
 
 
 def _get_spotify() -> spotipy.Spotify:
-    """Lazy Spotify client initialization."""
+    """Lazy Spotify client."""
     global _sp
     if _sp is None:
+        load_dotenv()
         _sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-            client_id=SPOTIPY_CLIENT_ID,
-            client_secret=SPOTIPY_CLIENT_SECRET,
-            redirect_uri=SPOTIPY_REDIRECT_URI,
+            client_id=os.getenv("SPOTIPY_CLIENT_ID"),
+            client_secret=os.getenv("SPOTIPY_CLIENT_SECRET"),
+            redirect_uri=os.getenv("SPOTIPY_REDIRECT_URI"),
             scope="user-modify-playback-state,user-read-playback-state",
         ))
     return _sp
@@ -107,23 +77,30 @@ def _get_active_device(sp: spotipy.Spotify) -> Optional[str]:
         return None
 
 
-def _launch_spotify_and_wait(sp: spotipy.Spotify, timeout: int = 10) -> Optional[str]:
-    """Spotify'ı başlat ve cihaz aktif olana kadar bekle."""
-    try:
-        os.startfile("spotify:")
-        logger.info("Spotify başlatılıyor...")
-        import time
-        for i in range(timeout):
-            time.sleep(1)
-            device_id = _get_active_device(sp)
-            if device_id:
-                logger.info("Spotify cihazı bulundu (%d saniye)", i + 1)
-                return device_id
-        logger.warning("Spotify %d saniyede cihaz sağlayamadı", timeout)
-        return None
-    except Exception as e:
-        logger.error("Spotify başlatma hatası: %s", e)
-        return None
+def _launch_spotify_async(sp: spotipy.Spotify, timeout: int = 10) -> Optional[str]:
+    """Spotify'ı başlat, threading.Event ile non-blocking bekle."""
+    result_holder: dict = {"device_id": None}
+    ready = threading.Event()
+
+    def _poll():
+        try:
+            os.startfile("spotify:")
+            time.sleep(2)
+            for _ in range(int((timeout - 2) / 0.5)):
+                device_id = _get_active_device(sp)
+                if device_id:
+                    result_holder["device_id"] = device_id
+                    ready.set()
+                    return
+                time.sleep(0.5)
+        except Exception as e:
+            logger.error("Spotify başlatma hatası: %s", e)
+        ready.set()
+
+    thread = threading.Thread(target=_poll, daemon=True)
+    thread.start()
+    ready.wait(timeout=timeout)
+    return result_holder["device_id"]
 
 
 def _ensure_device(sp: spotipy.Spotify) -> Optional[str]:
@@ -131,7 +108,7 @@ def _ensure_device(sp: spotipy.Spotify) -> Optional[str]:
     device_id = _get_active_device(sp)
     if device_id:
         return device_id
-    return _launch_spotify_and_wait(sp)
+    return _launch_spotify_async(sp)
 
 
 def play_music(params: dict) -> bool:
@@ -145,7 +122,7 @@ def play_music(params: dict) -> bool:
         Başarılı ise True
     """
     emotion: str = params.get("emotion", "")
-    song_name: str = clean_song_name(params.get("song_name", ""))
+    song_name: str = params.get("song_name", "")
 
     if not song_name and not emotion:
         logger.warning("Şarkı adı veya duygu belirtilmedi")
