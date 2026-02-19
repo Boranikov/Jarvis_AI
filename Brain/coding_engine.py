@@ -271,16 +271,15 @@ def process_coding_task(
             break
 
         # --- Yıkıcı işlemler: Onay iste ---
-        if _SAFETY_MODE:
-            if tool in _DESTRUCTIVE_TOOLS:
-                # Onay bilgisi hazırla
-                file_name: str = args.get("name", "bilinmeyen")
-                content_preview: str = ""
-                if tool == "write_to_file":
-                    full_content = args.get("content", "")
-                    content_preview = full_content[:500]
-                    if len(full_content) > 500:
-                        content_preview += "\n... (devamı var)"
+        if _SAFETY_MODE and tool in _DESTRUCTIVE_TOOLS:
+            # Onay bilgisi hazırla
+            file_name: str = args.get("name", "bilinmeyen")
+            content_preview: str = ""
+            if tool == "write_to_file":
+                full_content = args.get("content", "")
+                content_preview = full_content[:500]
+                if len(full_content) > 500:
+                    content_preview += "\n... (devamı var)"
 
             # Onay mekanizması
             approved: bool = False

@@ -21,7 +21,7 @@ from Utils.math_validator import (
     llm_failed_to_solve,
     solve_directly,
 )
-from config import PRESENCE_TRIGGERS, get_logger
+from config import PRESENCE_TRIGGERS, REQUIRED_PARAMS, MISSING_QUESTIONS, get_logger
 
 logger = get_logger("core.handler")
 
@@ -49,23 +49,37 @@ def handle_presence_check(user_input: str) -> bool:
     return False
 
 
-def _build_fast_model_params(result: dict[str, Any]) -> dict[str, Any]:
+def _build_fast_model_params(result: dict[str, Any], user_input: str = "") -> dict[str, Any]:
     """Fast model sonucundan parametre dictionary'si oluştur."""
     parameters: Any = result.get("parameters", {})
+    logger.debug("Fast model ham sonuç: action=%s, song_name=%s, path=%s, name=%s, parameters=%s",
+                 result.get("action"), result.get("song_name"), result.get("path"), result.get("name"), parameters)
     if not isinstance(parameters, dict):
         parameters = {}
 
-    # Alanları parametrelere aktar
+    # Üst seviye alanları parametrelere aktar
     for key in ("path", "name", "song_name"):
         value: Optional[str] = result.get(key)
         if value:
             parameters[key] = value
+        elif key in parameters and parameters[key]:
+            # Model değeri parameters içine koymuşsa, üst seviyeye de yansıt
+            result[key] = parameters[key]
 
     # Dosya/klasör işlemleri için varsayılan path
     action: str = result.get("action", "unknown")
     if action in _FILE_ACTIONS and not parameters.get("path"):
         parameters["path"] = "desktop"
 
+    # play_music için fallback: LLM song_name döndüremediyse kullanıcı girdisinden çıkar
+    if action == "play_music" and not parameters.get("song_name") and user_input:
+        from Utils.helpers import clean_song_name
+        fallback_name: str = clean_song_name(user_input)
+        if fallback_name:
+            parameters["song_name"] = fallback_name
+            logger.debug("song_name fallback uygulandı: '%s'", fallback_name)
+
+    logger.debug("Final parametreler: %s", parameters)
     return parameters
 
 
@@ -83,6 +97,29 @@ def process_input(
             print(f"Jarvis: {response}")
             return None
         return response
+
+    if memory.has_pending():
+        completed = memory.fill_pending(user_input)
+        if completed:
+            action: str = completed["action"]
+            params: dict = completed["params"]
+            logger.debug("Pending tamamlandı: %s — %s", action, params)
+            skill_result = perform_skill(action, params)
+            memory.clear_pending()
+            reply: str = "İşleminiz tamamlandı Efendim." if skill_result else "İşlem başarısız oldu Efendim."
+            if mode == OutputMode.CLI:
+                print(f"Jarvis: {reply}")
+                return None
+            return reply
+        # Hala eksik parametre var — sonraki soruyu bekle
+        next_param: str = memory.pending_params[0] if memory.pending_params else "parametre"
+        question: str = MISSING_QUESTIONS.get(
+            memory.pending_action, {}
+        ).get(next_param, f"{next_param} nedir?")
+        if mode == OutputMode.CLI:
+            print(f"Jarvis: {question}")
+            return None
+        return question
 
     # Routing
     route: str = classify_intent(user_input)
@@ -111,7 +148,7 @@ def process_input(
         return _handle_reasoning(user_input, emotion_context, memory, mode)
 
     # Fast Model (Intent Engine)
-    return _handle_fast_model(user_input, memory, mode)
+    return _handle_fast_model(user_input, memory, mode, emotion_context)
 
 
 def _handle_reasoning(
@@ -193,6 +230,7 @@ def _handle_fast_model(
     user_input: str,
     memory: Memory,
     mode: OutputMode,
+    emotion_context: Optional[dict] = None,
 ) -> Optional[str]:
     """
     Fast model (Intent Engine) ile basit komutları işle.
@@ -201,6 +239,7 @@ def _handle_fast_model(
         user_input: Kullanıcı girdisi
         memory: Hafıza nesnesi
         mode: Çıktı modu
+        emotion_context: Duygu bilgisi (opsiyonel)
 
     Returns:
         GUI modunda yanıt string'i, CLI modunda None
@@ -209,7 +248,7 @@ def _handle_fast_model(
 
     action: str = result.get("action", "unknown")
     reply: str = result.get("reply", "Efendim?")
-    parameters: dict = _build_fast_model_params(result)
+    parameters: dict = _build_fast_model_params(result, user_input)
 
     if mode == OutputMode.CLI:
         print(f"Jarvis: {reply}")
@@ -233,6 +272,25 @@ def _handle_fast_model(
                     original_params[key] = val
             memory.set_pending(original_action, missing, original_params)
         return reply if mode == OutputMode.GUI else None
+
+    # --- BUG 3 FIX: REQUIRED_PARAMS ile ek validasyon ---
+    required: tuple = REQUIRED_PARAMS.get(action, ())
+    missing_params: list[str] = [p for p in required if not parameters.get(p)]
+    if missing_params:
+        logger.debug("Eksik parametreler (LLM kaçırdı): %s", missing_params)
+        question: str = MISSING_QUESTIONS.get(action, {}).get(
+            missing_params[0], f"{missing_params[0]} belirtilmedi Efendim."
+        )
+        memory.set_pending(action, missing_params, parameters)
+        if mode == OutputMode.CLI:
+            print(f"Jarvis: {question}")
+            return None
+        return question
+
+    # --- BUG 4 FIX: Duygu bilgisini play_music'e aktar ---
+    if action == "play_music" and not parameters.get("song_name"):
+        if emotion_context and emotion_context.get("detected"):
+            parameters["emotion"] = emotion_context["category"]
 
     # Skill çalıştır
     if action not in _NON_SKILL_ACTIONS:

@@ -18,7 +18,7 @@ from config import get_logger
 logger = get_logger("skills.manager")
 
 # Aksiyon → Fonksiyon eşleştirmesi
-SKILL_MAP: dict[str, Callable[[dict], bool]] = {
+SKILL_MAP: dict[str, Callable[[dict], bool | str | None]] = {
     "create_file": create_file,
     "create_folder": create_folder,
     "delete_file": delete_file,

@@ -188,6 +188,7 @@ def process_reasoning(
         "response": "Düşünme sürecinde bir hata oluştu Efendim.",
         "emotion_detected": None,
         "steps": None,
+        "executable_steps": None,
         "follow_up": None,
         "success": False,
     }

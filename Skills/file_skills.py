@@ -22,6 +22,8 @@ def _validate_params(params: dict, operation: str) -> Optional[str]:
         return None
 
     location: Optional[str] = params.get("path")
+    if not location:
+        logger.info("%s: Konum belirtilmedi, varsayılan Desktop kullanılıyor", operation)
     return os.path.join(get_path(location), name)
 
 
@@ -58,7 +60,7 @@ def create_file(params: dict) -> bool:
         return False
 
 
-def read_file(params: dict) -> bool:
+def read_file(params: dict) -> str | bool:
     """
     Dosya oku.
 
@@ -66,11 +68,11 @@ def read_file(params: dict) -> bool:
         params: {name: test.py, path: /home/boran/Desktop}
 
     Returns:
-        Başarılı ise True
+        Dosya içeriği (str) veya hata durumunda False
     """
     target: Optional[str] = _validate_params(params, "read_file")
     if not target:
-        return ("HATA: Dosya yolu bulunamadı")
+        return "HATA: Dosya yolu bulunamadı"
     try:
         with open(target, "r", encoding="utf-8") as file:
             content = file.read()
@@ -124,12 +126,11 @@ def write_to_file(params: dict) -> bool:
 
 def list_dir_recursive(params: dict) -> str:
     """
-
     Klasör altındaki dosya yapısını ağaç şeklinde listeler.
     Params: {"path": "..."} veya {"path": "desktop", "name": "proje"}
 
     Returns:
-        Başarılı ise True
+        Dosya ağacı string'i veya hata mesajı
     """
     # name opsiyonel, sadece path verilmiş olabilir
     if params.get("name"):

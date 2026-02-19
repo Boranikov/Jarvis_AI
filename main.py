@@ -13,9 +13,8 @@ from config import EXIT_COMMANDS, setup_logging
 def run_cli() -> None:
     """Konsol tabanlı arayüzü çalıştır."""
     from Brain.memory import Memory
-    from Core.handler import process_input, handle_presence_check, OutputMode
+    from Core.handler import process_input, OutputMode
     from Core.display import print_header
-    from Skills.skills_manager import perform_skill
 
     print_header()
     memory = Memory()
@@ -36,24 +35,7 @@ def run_cli() -> None:
         if not user_input:
             continue
 
-        # Sistem kontrolü
-        if handle_presence_check(user_input):
-            continue
-
-        # Bekleyen işlem kontrolü
-        if memory.has_pending():
-            result = memory.fill_pending(user_input)
-            if result:
-                action: str = result.get("action", "")
-                params: dict = result.get("params", {})
-                print("Jarvis: İşleminiz tamamlanıyor efendim.")
-                perform_skill(action, params)
-                memory.clear_pending()
-            else:
-                print("Jarvis: Devam edebilirsiniz efendim.")
-            continue
-
-        # Ana işlem — unified API
+        # Ana işlem — unified API (pending, presence, routing hepsi burada)
         process_input(user_input, memory, OutputMode.CLI)
 
 

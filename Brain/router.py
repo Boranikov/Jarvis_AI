@@ -49,9 +49,9 @@ _MATH_WORD_KEYWORDS: frozenset[str] = frozenset({
     "toplam", "çarp", "böl", "çıkar", "ekle",
 })
 
-# Matematik operatörleri (karakter match)
+# Matematik operatörleri (karakter match — yalnızca belirsiz durumlar için)
 _MATH_OPERATORS: frozenset[str] = frozenset({
-    "+", "-", "*", "/", "^", "!", "=",
+    "+", "*", "/", "^",
 })
 
 # Dosya aksiyon kelimeleri (çoklu işlem tespiti için)
