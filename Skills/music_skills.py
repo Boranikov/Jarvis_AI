@@ -1,8 +1,9 @@
 """
 Jarvis AI - Music Skills
 
-Spotify API üzerinden müzik çalma işlemleri.
+Spotify API üzerinden müzik çalma işlemleri. Tüm parametre doğrulaması Pydantic modelleri ile yapılır.
 """
+
 import os
 import random
 import time
@@ -13,6 +14,7 @@ from typing import Optional
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 
 from config import get_logger
 
@@ -20,8 +22,35 @@ logger = get_logger("skills.music")
 
 _sp: Optional[spotipy.Spotify] = None
 
-# Duygu → Spotify genre/audio-feature mapping
-# Üzgün kullanıcıya neşeli şarkılar, mutlu kullanıcıya enerjik şarkılar vb.
+
+# ==========================================
+# PYDANTIC MODELLERİ
+# ==========================================
+
+class PlayMusicParams(BaseModel):
+    """Müzik çalma için şema. song_name veya emotion'dan en az biri sağlanmalıdır."""
+    song_name: Optional[str] = Field(
+        None,
+        description="Aranacak şarkı veya sanatçı adı (örnek: 'Tarkan Dudu', 'Adele Someone Like You').",
+    )
+    emotion: Optional[str] = Field(
+        None,
+        description=(
+            "Duygu durumuna göre öneri: 'positive', 'negative' veya 'neutral'. "
+            "song_name belirtilmemişse bu alana göre öneri yapılır."
+        ),
+    )
+
+
+class NoParams(BaseModel):
+    """Parametre gerektirmeyen işlemler (duraklat, devam et, vb.) için boş şema."""
+    pass
+
+
+# ==========================================
+# YARDIMCI / DAHİLİ YAPILAR
+# ==========================================
+
 _EMOTION_MUSIC_MAP: dict[str, dict] = {
     "negative": {
         "genres": ["pop", "turkish pop", "chill"],
@@ -40,7 +69,6 @@ _EMOTION_MUSIC_MAP: dict[str, dict] = {
     },
 }
 
-# Varsayılan (bilinmeyen duygu)
 _DEFAULT_EMOTION_CONFIG: dict = {
     "genres": ["pop", "chill"],
     "target_valence": 0.7,
@@ -49,16 +77,18 @@ _DEFAULT_EMOTION_CONFIG: dict = {
 
 
 def _get_spotify() -> spotipy.Spotify:
-    """Lazy Spotify client."""
+    """Lazy Spotify client — ilk çağrıda başlatılır."""
     global _sp
     if _sp is None:
         load_dotenv()
-        _sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-            client_id=os.getenv("SPOTIPY_CLIENT_ID"),
-            client_secret=os.getenv("SPOTIPY_CLIENT_SECRET"),
-            redirect_uri=os.getenv("SPOTIPY_REDIRECT_URI"),
-            scope="user-modify-playback-state,user-read-playback-state",
-        ))
+        _sp = spotipy.Spotify(
+            auth_manager=SpotifyOAuth(
+                client_id=os.getenv("SPOTIPY_CLIENT_ID"),
+                client_secret=os.getenv("SPOTIPY_CLIENT_SECRET"),
+                redirect_uri=os.getenv("SPOTIPY_REDIRECT_URI"),
+                scope="user-modify-playback-state,user-read-playback-state",
+            )
+        )
     return _sp
 
 
@@ -72,17 +102,17 @@ def _get_active_device(sp: spotipy.Spotify) -> Optional[str]:
             if device.get("is_active"):
                 return device["id"]
         return devices["devices"][0]["id"]
-    except Exception as e:
-        logger.error("Cihaz listesi alınamadı: %s", e)
+    except Exception as exc:
+        logger.error("Cihaz listesi alınamadı: %s", exc)
         return None
 
 
 def _launch_spotify_async(sp: spotipy.Spotify, timeout: int = 10) -> Optional[str]:
-    """Spotify'ı başlat, threading.Event ile non-blocking bekle."""
+    """Spotify'ı başlat ve aktif cihazı non-blocking olarak bekle."""
     result_holder: dict = {"device_id": None}
     ready = threading.Event()
 
-    def _poll():
+    def _poll() -> None:
         try:
             os.startfile("spotify:")
             time.sleep(2)
@@ -93,36 +123,55 @@ def _launch_spotify_async(sp: spotipy.Spotify, timeout: int = 10) -> Optional[st
                     ready.set()
                     return
                 time.sleep(0.5)
-        except Exception as e:
-            logger.error("Spotify başlatma hatası: %s", e)
+        except Exception as exc:
+            logger.error("Spotify başlatma hatası: %s", exc)
         ready.set()
 
-    thread = threading.Thread(target=_poll, daemon=True)
-    thread.start()
+    threading.Thread(target=_poll, daemon=True).start()
     ready.wait(timeout=timeout)
     return result_holder["device_id"]
 
 
 def _ensure_device(sp: spotipy.Spotify) -> Optional[str]:
     """Aktif cihaz bul, yoksa Spotify'ı başlat."""
-    device_id = _get_active_device(sp)
-    if device_id:
-        return device_id
-    return _launch_spotify_async(sp)
+    return _get_active_device(sp) or _launch_spotify_async(sp)
 
 
-def play_music(params: dict) -> bool:
-    """
-    Spotify'da müzik ara ve çal.
+def _play_by_emotion(sp: spotipy.Spotify, emotion: str) -> Optional[dict]:
+    """Duygu durumuna göre Spotify Recommendations API ile şarkı bul."""
+    config = _EMOTION_MUSIC_MAP.get(emotion.lower(), _DEFAULT_EMOTION_CONFIG)
+    genres = config["genres"][:2]
+    try:
+        results = sp.recommendations(
+            seed_genres=genres,
+            target_valence=config["target_valence"],
+            target_energy=config["target_energy"],
+            limit=10,
+        )
+        tracks = results.get("tracks", [])
+        if not tracks:
+            logger.warning("Duygu '%s' için öneri bulunamadı", emotion)
+            return None
+        track = random.choice(tracks)
+        return {
+            "id": track["id"],
+            "name": track["name"],
+            "artist": track["artists"][0]["name"],
+            "url": track["external_urls"].get("spotify", ""),
+        }
+    except Exception as exc:
+        logger.error("Recommendation API hatası: %s", exc)
+        return None
 
-    Args:
-        params: song_name veya emotion içeren dictionary
 
-    Returns:
-        Başarılı ise True
-    """
-    emotion: str = params.get("emotion", "")
-    song_name: str = params.get("song_name", "")
+# ==========================================
+# YETENEK FONKSİYONLARI (SKILLS)
+# ==========================================
+
+def play_music(params: PlayMusicParams) -> bool:
+    """Spotify'da müzik ara ve çal. Duygu bazlı öneri desteklenir."""
+    song_name = params.song_name
+    emotion = params.emotion
 
     if not song_name and not emotion:
         logger.warning("Şarkı adı veya duygu belirtilmedi")
@@ -131,32 +180,26 @@ def play_music(params: dict) -> bool:
     try:
         sp = _get_spotify()
 
-        # Duygu bazlı müzik: emotion varsa recommendations API kullan
         if emotion and not song_name:
             rec = _play_by_emotion(sp, emotion)
             if not rec:
-                logger.warning("Duygu bazlı öneri bulunamadı, fallback...")
+                logger.warning("Duygu bazlı öneri bulunamadı")
                 return False
-
             track_id = rec["id"]
             track_name = rec["name"]
             artist_name = rec["artist"]
             track_url = rec["url"]
         else:
-            # Normal şarkı arama
             sonuc = sp.search(q=song_name, limit=1, type="track")
-
             if not sonuc or not sonuc["tracks"]["items"]:
                 logger.warning("Spotify'da '%s' bulunamadı", song_name)
                 return False
-
             track = sonuc["tracks"]["items"][0]
             track_id = track["id"]
             track_name = track["name"]
             artist_name = track["artists"][0]["name"]
             track_url = track["external_urls"].get("spotify", "")
 
-        # Cihaz bul ve çal
         device_id = _ensure_device(sp)
 
         if device_id:
@@ -164,94 +207,62 @@ def play_music(params: dict) -> bool:
             logger.info("Çalıyor: %s - %s", track_name, artist_name)
         elif track_url:
             webbrowser.open(track_url)
-            logger.info("Cihaz bulunamadı, web'de açılıyor: %s - %s", track_name, artist_name)
+            logger.info("Web'de açılıyor: %s - %s", track_name, artist_name)
         else:
             logger.warning("Spotify başlatılamadı ve URL bulunamadı")
             return False
 
         return True
 
-    except spotipy.exceptions.SpotifyException as e:
-        logger.error("Spotify API hatası: %s", e)
+    except spotipy.exceptions.SpotifyException as exc:
+        logger.error("Spotify API hatası: %s", exc)
         return False
-    except Exception as e:
-        logger.error("Müzik çalma hatası: %s", e)
+    except Exception as exc:
+        logger.error("Müzik çalma hatası: %s", exc)
         return False
 
-def _play_by_emotion(sp: spotipy.Spotify, emotion: str) -> Optional[dict]:
-    """Duygu durumuna göre Spotify recommendations API ile şarkı bul."""
-    config = _EMOTION_MUSIC_MAP.get(emotion.lower(), _DEFAULT_EMOTION_CONFIG)
-    genres = config["genres"][:2]
 
-    try:
-        results = sp.recommendations(
-            seed_genres=genres,
-            target_valence=config["target_valence"],
-            target_energy=config["target_energy"],
-            limit=10,
-        )
-
-        tracks = results.get("tracks", [])
-        if not tracks:
-            logger.warning("Duygu '%s' için öneri bulunamadı", emotion)
-            return None
-
-        track = random.choice(tracks)
-        return {
-            "id": track["id"],
-            "name": track["name"],
-            "artist": track["artists"][0]["name"],
-            "url": track["external_urls"].get("spotify", ""),
-        }
-    except Exception as e:
-        logger.error("Recommendation API hatası: %s", e)
-        return None
-
-
-def pause_music(params: dict = None) -> bool:
+def pause_music(params: NoParams) -> bool:
     """Çalan müziği duraklat."""
     try:
-        sp = _get_spotify()
-        sp.pause_playback()
+        _get_spotify().pause_playback()
         logger.info("Müzik duraklatıldı")
         return True
-    except Exception as e:
-        logger.error("Duraklama hatası: %s", e)
+    except Exception as exc:
+        logger.error("Duraklama hatası: %s", exc)
         return False
 
-def resume_music(params: dict = None) -> bool:
+
+def resume_music(params: NoParams) -> bool:
     """Çalan müziği devam ettir."""
     try:
-        sp = _get_spotify()
-        sp.start_playback()
+        _get_spotify().start_playback()
         logger.info("Müzik devam ediyor")
         return True
-    except Exception as e:
-        logger.error("Devam etme hatası: %s", e)
+    except Exception as exc:
+        logger.error("Devam etme hatası: %s", exc)
         return False
 
-def next_track(params: dict = None) -> bool:
-    """Çalan müziği değiştirir."""
+
+def next_track(params: NoParams) -> bool:
+    """Sıradaki şarkıya geç."""
     try:
-        sp = _get_spotify()
-        sp.next_track()
-        logger.info("Müzik değiştirildi")
+        _get_spotify().next_track()
+        logger.info("Sonraki parçaya geçildi")
         return True
-    except Exception as e:
-        logger.error("Müzik değiştirme hatası: %s", e)
+    except Exception as exc:
+        logger.error("Sıradaki parça hatası: %s", exc)
         return False
 
-def get_current_track(params: dict = None) -> Optional[str]:
-    """Şu an çalan şarkının bilgilerini formatlanmış string olarak döndür."""
+
+def get_current_track(params: NoParams) -> Optional[str]:
+    """Şu an çalan şarkının adını ve sanatçısını döndür."""
     try:
-        sp = _get_spotify()
-        current = sp.current_playback()
+        current = _get_spotify().current_playback()
         if not current or not current.get("item"):
             return None
         item = current["item"]
-        track_name = item["name"]
-        artist_name = item["artists"][0]["name"]
-        return f"{track_name} - {artist_name}"
-    except Exception as e:
-        logger.error("Şu an çalan şarkı alınamadı: %s", e)
+        return f"{item['name']} - {item['artists'][0]['name']}"
+    except Exception as exc:
+        logger.error("Şu an çalan şarkı alınamadı: %s", exc)
         return None

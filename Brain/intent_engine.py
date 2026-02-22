@@ -126,6 +126,14 @@ _DEFAULT_FIELDS: dict[str, Any] = {
     "reply": "Efendim?",
 }
 
+# JSON format düzeltme prompt'u — model sohbet moduna girince kullanılır
+_FORMAT_CORRECTION_PROMPT: str = (
+    "HATA: Yanıtın JSON formatında değildi. "
+    "Cevabını YALNIZCA şu formatta ver, başka hiçbir şey ekleme:\n"
+    '{"action": "...", "reply": "...", "path": null, "name": null, '
+    '"song_name": null, "query": null, "original_action": null, "parameters": {}}'
+)
+
 
 def process_command(text: str, history: list[dict]) -> dict[str, Any]:
     """
@@ -138,32 +146,55 @@ def process_command(text: str, history: list[dict]) -> dict[str, Any]:
     Returns:
         Intent ve parametreleri içeren dictionary
     """
-    try:
-        history_msgs: list[dict] = []
-        for entry in history[-3:]:
-            history_msgs.append({"role": "user", "content": entry.get("user", "")})
-            history_msgs.append({"role": "assistant", "content": entry.get("jarvis", "")})
+    # Asistan yanıtlarını [JSON_RESPONSE] etiketiyle sarıyoruz.
+    # Böylece model, önceki doğal dil yanıtlarını görüp sohbet moduna girmiyor.
+    history_msgs: list[dict] = []
+    for entry in history[-3:]:
+        history_msgs.append({"role": "user", "content": entry.get("user", "")})
+        history_msgs.append({
+            "role": "assistant",
+            "content": f"[JSON_RESPONSE] {entry.get('jarvis', '')}",
+        })
 
+    base_messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        *history_msgs,
+        {"role": "user", "content": text},
+    ]
+
+    try:
         response = ollama.chat(
             model=FAST_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                *history_msgs,
-                {"role": "user", "content": text},
-            ],
+            messages=base_messages,
             options={"temperature": LLM_TEMPERATURE},
         )
-
         content: str = response.message.content.strip()
         match = re.search(r"\{.*\}", content, re.DOTALL)
 
         if not match:
-            logger.warning("JSON bulunamadı, LLM yanıtı: %.100s", content)
-            return {
-                "action": "unknown",
-                "reply": "Anlayamadım efendim.",
-                "parameters": {},
-            }
+            # --- JSON bulunamadı: tek seferlik retry ---
+            logger.warning("JSON bulunamadı, retry deneniyor. LLM yanıtı: %.100s", content)
+            retry_messages = base_messages + [
+                {"role": "assistant", "content": content},
+                {"role": "user", "content": _FORMAT_CORRECTION_PROMPT},
+            ]
+            retry_response = ollama.chat(
+                model=FAST_MODEL,
+                messages=retry_messages,
+                options={"temperature": 0.0},  # Deterministik → JSON gelmek zorunda
+            )
+            retry_content: str = retry_response.message.content.strip()
+            match = re.search(r"\{.*\}", retry_content, re.DOTALL)
+
+            if not match:
+                logger.error("Retry sonrası da JSON bulunamadı: %.100s", retry_content)
+                return {
+                    "action": "unknown",
+                    "reply": "Anlayamadım efendim.",
+                    **{k: v for k, v in _DEFAULT_FIELDS.items() if k != "reply"},
+                }
+            content = retry_content
+            match = re.search(r"\{.*\}", content, re.DOTALL)
 
         result: dict = json.loads(match.group())
 
@@ -178,7 +209,6 @@ def process_command(text: str, history: list[dict]) -> dict[str, Any]:
     except ConnectionError as exc:
         logger.error("Ollama bağlantı hatası: %s", exc)
     except Exception as exc:
-        # Beklenmeyen hatalar için son savunma hattı
         logger.error("Intent Engine beklenmeyen hata: %s", exc, exc_info=True)
 
     return {
