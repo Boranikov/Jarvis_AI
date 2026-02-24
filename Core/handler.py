@@ -26,11 +26,12 @@ from config import PRESENCE_TRIGGERS, REQUIRED_PARAMS, MISSING_QUESTIONS, get_lo
 logger = get_logger("core.handler")
 
 # Skill çalıştırılmayan aksiyonlar
-_NON_SKILL_ACTIONS: frozenset[str] = frozenset({"small_talk", "unknown", "missing_parameters"})
+_NON_SKILL_ACTIONS: frozenset[str] = frozenset({"small_talk", "unknown", "missing_parameters", "multi_action"})
 
 # Dosya/klasör işlemleri
 _FILE_ACTIONS: frozenset[str] = frozenset({
-    "create_file", "create_folder", "delete_file", "delete_folder",
+    "create_file", "create_folder", "delete_file", "delete_folder", "write_to_file", "list_dir", 
+    "read_file", "list_dir_recursive"
 })
 
 
@@ -126,7 +127,6 @@ def process_input(
 
     # Coding Model
     if route == "coding":
-        return _handle_coding(user_input, memory, mode)
         return _handle_coding(user_input, memory, mode)
 
     emotion_context: dict = detect_emotion(user_input)
@@ -264,7 +264,6 @@ def _handle_fast_model(
             memory.set_pending(original_action, missing, original_params)
         return reply if mode == OutputMode.GUI else None
 
-    # --- BUG 3 FIX: REQUIRED_PARAMS ile ek validasyon ---
     required: tuple = REQUIRED_PARAMS.get(action, ())
     missing_params: list[str] = [p for p in required if not parameters.get(p)]
     if missing_params:
@@ -278,12 +277,51 @@ def _handle_fast_model(
             return None
         return question
 
-    # --- BUG 4 FIX: Duygu bilgisini play_music'e aktar ---
+
     if action == "play_music" and not parameters.get("song_name"):
         if emotion_context and emotion_context.get("detected"):
             parameters["emotion"] = emotion_context["category"]
 
-    # Skill çalıştır
+    # Multi-action: actions listesi varsa sırayla yürüt
+    multi_actions: list = result.get("actions", [])
+    if action == "multi_action" or (isinstance(multi_actions, list) and multi_actions):
+        # write_to_file adımı içeriyorsa → coding engine'e yönlendir
+        has_code_write: bool = any(
+            isinstance(s, dict) and s.get("action") == "write_to_file" or s.get("action") == "read_file" or s.get("action") == "list_dir_recusive"
+            for s in multi_actions
+        )
+        if has_code_write:
+            logger.debug("write_to_file tespit edildi → coding engine'e yönlendiriliyor")
+            return _handle_coding(user_input, memory, mode)
+
+        # Kod yazmayan adımlar → plan executor ile çalıştır
+        executable_steps: list[dict] = []
+        for sub in multi_actions:
+            if not isinstance(sub, dict) or not sub.get("action"):
+                continue
+            sub_params: dict = dict(sub.get("parameters") or {})
+            for key in ("path", "name", "song_name", "query", "content"):
+                val = sub.get(key)
+                if val:
+                    sub_params[key] = val
+            # Dosya/klasör işlemleri için varsayılan path
+            if sub["action"] in _FILE_ACTIONS and not sub_params.get("path"):
+                sub_params["path"] = "desktop"
+            executable_steps.append({"action": sub["action"], "params": sub_params})
+
+        if executable_steps:
+            logger.debug("%d adım yürütülecek (multi_action)...", len(executable_steps))
+            execution_result: dict = execute_plan(executable_steps)
+            execution_message: str = format_execution_result(execution_result)
+            if execution_message and mode == OutputMode.CLI:
+                print(f"Jarvis: {execution_message}")
+            if mode == OutputMode.GUI:
+                reply = reply + (f"\n{execution_message}" if execution_message else "")
+
+        memory.add(user_input, reply)
+        return reply if mode == OutputMode.GUI else None
+
+    # Skill çalıştır (tekil aksiyon)
     if action not in _NON_SKILL_ACTIONS:
         skill_result = perform_skill(action, parameters)
 

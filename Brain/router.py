@@ -110,18 +110,23 @@ _EMOTION_PHRASE_MAP: dict[str, str] = {
     "keyfim yok": "negative"
 }
 
-# Kodlama kelimeleri (token match)
+# Kodlama kelimeleri (token match) — Çok spesifik olmalı, false positive vermez
 _CODING_KEYWORDS: frozenset[str] = frozenset({
     "kodla", "fonksiyon", "class", "bug",
     "refactor", "debug", "script", "import",
     "değişken", "metod", "modül",
+    "yazılım", "algoritma",
 })
 
 # Çok kelimelik kodlama ifadeleri (substring match)
 _CODING_PHRASE_TRIGGERS: tuple[str, ...] = (
-    "kod yaz", "optimize et", "hata bul", "bug fix",
+    "kod yaz", "kodu yaz", "optimize et", "hata bul", "bug fix",
     "dosyasını düzelt", "dosyasını oku", "kodu düzelt",
     "fonksiyon ekle", "class ekle", "refactor et",
+    # Dosya içine kod yazma kalıpları
+    "uygulama kodu", "uygulaması kodu", "kod yazdır",
+    "içine yaz", "program yaz", "programla", "script yaz",
+    "python kodu", "java kodu", "c++ kodu",
 )
 
 # Hızlı token-bazlı duygu seti (classify_intent'de kullanılır)
