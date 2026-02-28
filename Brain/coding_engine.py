@@ -148,8 +148,6 @@ def process_coding_task(
     """
     Kodlama isteğini agentic döngü ile işler.
 
-    Model, dosya okuma/yazma/listeleme araçlarını çağırarak
-    kendi kendine görev tamamlama döngüsü çalıştırır.
 
     Args:
         user_input: Kullanıcı girdisi

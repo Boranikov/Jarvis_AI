@@ -27,9 +27,6 @@ class Memory:
         """
         Konuşmaya yeni bir girdi ekle.
 
-        deque(maxlen=N) sayesinde boyut kontrolü otomatik yapılır,
-        eski veri düşer → manuel slice gerekmiyor.
-
         Args:
             user: Kullanıcı mesajı
             jarvis: Jarvis yanıtı

@@ -111,9 +111,6 @@ def process_command(text: str, history: list[dict]) -> dict[str, Any]:
     """
     Kullanıcı komutunu işle ve intent'i tanı.
 
-    format="json" sayesinde Ollama her zaman geçerli JSON döner.
-    Retry mekanizmasına veya manuel parse'a gerek yoktur.
-
     Args:
         text: Kullanıcı girdisi
         history: Konuşma geçmişi
