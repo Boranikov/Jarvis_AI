@@ -1,13 +1,13 @@
 """
 Jarvis AI - Input Handler
 
-Kullanıcı girdisi işleme ve model routing.
+Kullanıcı girdisi işleme ve engine routing.
 """
 
 from enum import Enum
 from typing import Any, Optional
 
-from Brain.router import classify_intent, detect_emotion
+from Brain.router import classify_intent
 from Brain.intent_engine import process_command
 from Brain.reasoning_engine import process_reasoning, format_reasoning_response
 from Brain.coding_engine import process_coding_task
@@ -118,25 +118,22 @@ def process_input(
     route: str = classify_intent(user_input)
 
     logger.debug(
-        "Model: %s",
+        "Pre-filter route: %s",
         {
-            "coding": "qwen2.5-coder:14b (coding)",
-            "reasoning": "qwen2.5:7b (reasoning)",
-        }.get(route, "qwen2.5:3b (fast)"),
+            "coding": "coding (pre-filter)",
+            "reasoning": "reasoning (pre-filter)",
+        }.get(route, "intent engine"),
     )
 
-    # Coding Model
+    # Pre-filter: Coding veya Reasoning kesin tespitlerde direkt yönlendir
     if route == "coding":
         return _handle_coding(user_input, memory, mode)
 
-    emotion_context: dict = detect_emotion(user_input)
-
-    # Reasoning Model
     if route == "reasoning":
-        return _handle_reasoning(user_input, emotion_context, memory, mode)
+        return _handle_reasoning(user_input, {}, memory, mode)
 
-    # Fast Model (Intent Engine)
-    return _handle_fast_model(user_input, memory, mode, emotion_context)
+    # Pre-filter belirsiz bıraktıysa — Intent Engine'e gönder (1 LLM çağrısı)
+    return _handle_fast_model(user_input, memory, mode)
 
 
 def _handle_reasoning(
@@ -147,17 +144,10 @@ def _handle_reasoning(
 ) -> Optional[str]:
     """
     Reasoning model ile karmaşık istekleri işle.
-
-    Args:
-        user_input: Kullanıcı girdisi
-        emotion_context: Duygu bilgisi
-        memory: Hafıza nesnesi
-        mode: Çıktı modu
-
-    Returns:
-        GUI modunda yanıt string'i, CLI modunda None
+    emotion_context artık reasoning engine'in içinde üretiliyor;
+    pre-filter'dan geliyorsa boş dict göndermek yeterli.
     """
-    result: dict = process_reasoning(user_input, emotion_context)
+    result: dict = process_reasoning(user_input, emotion_context if emotion_context else {})
 
     if not result.get("success"):
         fallback: str = result.get("response", "Bir sorun oluştu Efendim.")
@@ -224,19 +214,27 @@ def _handle_fast_model(
     emotion_context: Optional[dict] = None,
 ) -> Optional[str]:
     """
-    Fast model (Intent Engine) ile basit komutları işle.
-
-    Args:
-        user_input: Kullanıcı girdisi
-        memory: Hafıza nesnesi
-        mode: Çıktı modu
-        emotion_context: Duygu bilgisi (opsiyonel)
-
-    Returns:
-        GUI modunda yanıt string'i, CLI modunda None
+    Intent Engine ile komutu işle.
+    Intent engine'in döndürdüğü `type` alanına göre yönlendir:
+    - type="coding"    → coding engine
+    - type="reasoning" → reasoning engine
+    - type="skill"     → skill çalıştır
+    - type="chat"      → reply donür
     """
     result: dict = process_command(user_input, memory.get_history())
 
+    # Intent Engine'in type alanına göre yönlendir
+    intent_type: str = result.get("type", "skill")
+
+    if intent_type == "coding":
+        logger.debug("type=coding → coding engine'e yönlendiriliyor")
+        return _handle_coding(user_input, memory, mode)
+
+    if intent_type == "reasoning":
+        logger.debug("type=reasoning → reasoning engine'e yönlendiriliyor")
+        return _handle_reasoning(user_input, {}, memory, mode)
+
+    # type="skill" veya "chat" → normal akış
     action: str = result.get("action", "unknown")
     reply: str = result.get("reply", "Efendim?")
     parameters: dict = _build_fast_model_params(result, user_input)

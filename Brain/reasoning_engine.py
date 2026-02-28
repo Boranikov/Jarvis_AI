@@ -5,7 +5,6 @@ qwen2.5:7b modeli ile düşünme, planlama ve duygu analizi.
 """
 
 import json
-import re
 from typing import Any, Optional
 
 import ollama
@@ -88,26 +87,7 @@ _DEFAULT_RESULT_FIELDS: dict[str, Any] = {
 }
 
 
-def _build_fallback_result(content: str, success: bool = True) -> dict[str, Any]:
-    """
-    JSON parse edilemediğinde ham yanıttan sonuç oluştur.
 
-    Args:
-        content: LLM'den gelen ham metin
-        success: İşlemin başarılı sayılıp sayılmayacağı
-
-    Returns:
-        Standart sonuç dictionary
-    """
-    return {
-        "type": "answer",
-        "response": content,
-        "emotion_detected": None,
-        "steps": None,
-        "executable_steps": None,
-        "follow_up": None,
-        "success": success,
-    }
 
 
 def process_reasoning(
@@ -142,34 +122,11 @@ def process_reasoning(
                 {"role": "system", "content": REASONING_SYSTEM_PROMPT},
                 {"role": "user", "content": full_input},
             ],
+            format="json",
             options={"temperature": REASONING_TEMPERATURE},
         )
 
-        content: str = response.message.content.strip()
-
-        # JSON çıkar
-        match = re.search(r"\{.*\}", content, re.DOTALL)
-
-        if not match:
-            logger.info("Reasoning JSON bulunamadı, ham yanıt kullanılıyor")
-            return _build_fallback_result(content)
-
-        # JSON parse etmeyi dene
-        json_str: str = match.group()
-
-        try:
-            result: dict = json.loads(json_str)
-        except json.JSONDecodeError:
-            # Escape karakterlerini temizle ve tekrar dene
-            cleaned: str = json_str.replace("\\", "\\\\")
-            cleaned = re.sub(r'\\\\([^"\\nrtbfu])', r"\1", cleaned)
-
-            try:
-                result = json.loads(cleaned)
-            except json.JSONDecodeError:
-                logger.warning("JSON parse başarısız, ham yanıt kullanılıyor")
-                return _build_fallback_result(content)
-
+        result: dict = json.loads(response.message.content)
         result["success"] = True
 
         # Varsayılan alanları doldur

@@ -5,12 +5,11 @@ qwen2.5-coder:14b modeli ile kodlama, hata ayıklama ve proje yönetimi.
 """
 
 import json
-import re
 from typing import Any, Optional
 
 import ollama
 
-from config import CODING_MODEL, get_logger, MAX_TOOL_ITERATIONS, MAX_FORMAT_RETRIES, SAFETY_MODE
+from config import CODING_MODEL, get_logger, MAX_TOOL_ITERATIONS, SAFETY_MODE
 from Skills.skills_manager import perform_skill
 
 logger = get_logger("brain.coding")
@@ -104,93 +103,30 @@ Adım 3:
 Sadece JSON ile yanıt ver.
 """.format(default_path=_DEFAULT_PROJECT_PATH)
 
-# JSON format düzeltme prompt'u
-_FORMAT_CORRECTION_PROMPT: str = (
-    "HATA: Yanıtın geçerli JSON değildi. "
-    "Cevabını SADECE şu formatta ver:\n"
-    '{"thought": "...", "tool": "...", "args": {...}, "response": "..."}\n'
-    "Markdown, açıklama veya ekstra metin EKLEME. Sadece JSON."
-)
-
-
-def _parse_json_response(content: str) -> Optional[dict]:
-    """Ham LLM yanıtından JSON objesini çıkarmaya çalış."""
-    # Önce ```json ... ``` bloğu içinde mi bak
-    code_block = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL)
-    if code_block:
-        try:
-            return json.loads(code_block.group(1))
-        except json.JSONDecodeError:
-            pass
-
-    # Düz JSON objesi ara
-    match = re.search(r"\{.*\}", content, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group())
-        except json.JSONDecodeError:
-            # Escape karakterlerini temizle ve tekrar dene
-            cleaned = match.group().replace("\\\n", "\\n")
-            try:
-                return json.loads(cleaned)
-            except json.JSONDecodeError:
-                pass
-
-    return None
 
 
 def _call_model(messages: list[dict]) -> dict[str, Any]:
-    """Coding modeline istek gönder, JSON parse et, gerekirse tekrar dene."""
+    """Coding modeline istek gönder ve JSON parse et."""
     try:
         response = ollama.chat(
             model=CODING_MODEL,
             messages=messages,
+            format="json",
             options={"temperature": 0.2},
         )
 
-        content: str = response.message.content.strip()
-        parsed = _parse_json_response(content)
-
-        if parsed:
-            return parsed
-
-        # --- JSON bulunamadı: Modele format hatası gönder ve tekrar dene ---
-        logger.warning("Coding JSON bulunamadı, tekrar deneniyor...")
-
-        for retry in range(MAX_FORMAT_RETRIES):
-            logger.debug("Format düzeltme denemesi: %d", retry + 1)
-
-            # Hatalı yanıtı ve düzeltme talimatını ekle
-            retry_messages = messages + [
-                {"role": "assistant", "content": content},
-                {"role": "user", "content": _FORMAT_CORRECTION_PROMPT},
-            ]
-
-            retry_response = ollama.chat(
-                model=CODING_MODEL,
-                messages=retry_messages,
-                options={"temperature": 0.1},  
-            )
-
-            retry_content: str = retry_response.message.content.strip()
-            retry_parsed = _parse_json_response(retry_content)
-
-            if retry_parsed:
-                logger.info("Format düzeltme başarılı (deneme %d)", retry + 1)
-                return retry_parsed
-
-            content = retry_content  # Sonraki deneme için güncelle
-
-        # Tüm denemeler başarısız
-        logger.error("JSON format düzeltme başarısız, ham yanıt: %.300s", content)
-        return {"tool": "final_answer", "response": content, "args": {}}
+        return json.loads(response.message.content)
 
     except ConnectionError as exc:
         logger.error("Ollama bağlantı hatası: %s", exc)
         return {"tool": "final_answer", "response": "Model bağlantısı kurulamadı Efendim.", "args": {}}
+    except json.JSONDecodeError as exc:
+        logger.error("JSON parse hatası (format=json ile olmamali): %s", exc)
+        return {"tool": "final_answer", "response": "Bir hata oluştu Efendim.", "args": {}}
     except Exception as exc:
         logger.error("Coding Engine hatası: %s", exc, exc_info=True)
         return {"tool": "final_answer", "response": "Bir hata oluştu Efendim.", "args": {}}
+
 
 
 def _execute_tool(tool_name: str, args: dict[str, Any]) -> str:
