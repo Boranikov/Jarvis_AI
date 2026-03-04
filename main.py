@@ -2,6 +2,7 @@
 Jarvis AI Assistant - Ana Uygulama
 
 Türkçe konuşan, yerel bir AI asistanı.
+Çalışma modları: --cli (konsol), --server (FastAPI), varsayılan (GUI)
 """
 
 import sys
@@ -56,8 +57,30 @@ def run_gui() -> None:
     sys.exit(app.exec())
 
 
+def run_server() -> None:
+    """FastAPI sunucu modunu başlat (Dağıtık Jarvis — Beyin)."""
+    import uvicorn
+    from settings import get_settings
+
+    settings = get_settings()
+
+    print(f"🧠 Jarvis Brain başlatılıyor — {settings.api_host}:{settings.api_port}")
+    print(f"📡 Ollama: {settings.ollama_base_url}")
+    print(f"🗄️  Qdrant: {settings.qdrant_url}")
+    print(f"📋 API Docs: http://localhost:{settings.api_port}/docs")
+
+    uvicorn.run(
+        "Server.app:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        workers=settings.api_workers,
+        reload=settings.debug_mode,
+        log_level=settings.log_level.lower(),
+    )
+
+
 def main() -> None:
-    """Ana fonksiyon — GUI veya CLI modunu başlat."""
+    """Ana fonksiyon — GUI, CLI veya Server modunu başlat."""
     # Logging altyapısını ilk iş olarak kur
     setup_logging()
 
@@ -69,9 +92,16 @@ def main() -> None:
         action="store_true",
         help="Konsol modunda çalıştır (varsayılan: GUI)",
     )
+    parser.add_argument(
+        "--server",
+        action="store_true",
+        help="FastAPI sunucu modunda çalıştır (Dağıtık Jarvis)",
+    )
     args = parser.parse_args()
 
-    if args.cli:
+    if args.server:
+        run_server()
+    elif args.cli:
         run_cli()
     else:
         run_gui()

@@ -9,8 +9,22 @@ PyQt6>=6.6.0
 # Müzik (Spotify API)
 spotipy>=2.23.0
 
-# Ortam değişkenleri (.env)
+# Ortam değişkenleri
 python-dotenv>=1.0.0
+
+# === Dağıtık Sistem (Faz 0) ===
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+httpx>=0.28.0
+pydantic-settings>=2.7.0
+structlog>=24.4.0
+tenacity>=9.0.0
+
+# === Vektör Hafıza (Faz 3) ===
+qdrant-client>=1.12.0
+
+# === MCP (Faz 4) ===
+mcp[cli]>=1.2.0
 
 # Opsiyonel — Matematik doğrulama (Utils/math_validator.py)
 # sympy>=1.12
