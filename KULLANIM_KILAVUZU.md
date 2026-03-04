@@ -244,3 +244,127 @@ Jarvis_Aİ/
 └── dist/JarvisAI/       ← EXE çıktısı
     └── JarvisAI.exe     ← Çift tıkla ve çalıştır
 ```
+
+---
+
+## Mimari: Nerede Ne Çalışır?
+
+```
+┌──────────────────────────────────────────────────────┐
+│  🧠 BU BİLGİSAYAR (Windows — 100.82.212.6)          │
+│                                                      │
+│  ┌─────────────┐   ┌────────────┐   ┌─────────────┐ │
+│  │ FastAPI      │   │ Ollama     │   │ Skills      │ │
+│  │ Gateway      │──▶│ (AI Beyin) │   │ (Dosya vb.) │ │
+│  │ :8000        │   │ :11434     │   │             │ │
+│  └──────┬───────┘   └────────────┘   └─────────────┘ │
+│         │  Kodlar + Model + Yetenekler BURDA çalışır  │
+└─────────┼────────────────────────────────────────────┘
+          │ Tailscale VPN (şifreli tünel)
+┌─────────┼────────────────────────────────────────────┐
+│  🖥️ UBUNTU SUNUCU (100.119.172.35)                   │
+│         │                                             │
+│  ┌──────┴───────┐  ┌───────────┐  ┌──────────────┐  │
+│  │ n8n          │  │ Qdrant    │  │ Nextcloud    │  │
+│  │ (Otomasyon)  │  │ (Hafıza)  │  │ (Dosyalar)   │  │
+│  │ :5678        │  │ :6333     │  │ :8080        │  │
+│  └──────────────┘  └───────────┘  └──────────────┘  │
+│       Bu sunucu sadece VERİ SAKLAR ve İLETİR         │
+└──────────────────────────────────────────────────────┘
+```
+
+### Her Bileşen Ne Yapar?
+
+| Bileşen | Nerede | Ne Yapar | Benzetme |
+|---------|--------|----------|----------|
+| **Ollama** | Bu PC | AI modellerini çalıştırır, düşünür | Beyin |
+| **FastAPI** | Bu PC | Dışarıdan gelen istekleri karşılar | Kapı |
+| **Router** | Bu PC | Mesajı hangi modelin cevaplayacağını belirler | Yönlendirici |
+| **Skills** | Bu PC | Dosya aç, müzik çal gibi eylemleri yapar | Eller |
+| **n8n** | Sunucu | Telegram mesajını alır, Jarvis'e iletir | Postacı |
+| **Qdrant** | Sunucu | Jarvis'in uzun vadeli hafızası | Dosya dolabı |
+| **Nextcloud** | Sunucu | Bulut dosya depolama | USB bellek |
+| **Tailscale** | Her ikisi | İki cihazı şifreli bağlar | Özel yol |
+
+---
+
+## Bir Mesajın Tam Yolculuğu
+
+Telefondan "Masaüstüne proje klasörü aç" yazıyorsun:
+
+```
+ADIM 1 — Telefon
+  📱 Telegram'da mesaj yazıyorsun
+
+ADIM 2 — İnternet
+  ☁️ Telegram sunucusu mesajı n8n'e iletiyor
+
+ADIM 3 — n8n (Ubuntu Sunucu)
+  ⚙️ n8n mesajı alıyor, Jarvis'e gönderiyor:
+     → POST http://100.82.212.6:8000/api/chat
+
+ADIM 4 — FastAPI (Bu PC)
+  🌐 İsteği alıyor → işleme veriyor
+
+ADIM 5 — Router (Bu PC)
+  🧭 "Bu basit bir komut" → qwen2.5:3b seçiliyor
+
+ADIM 6 — Ollama (Bu PC)
+  🤖 Model mesajı anlıyor:
+     → {"action": "create_folder", "name": "proje"}
+
+ADIM 7 — Skills (Bu PC)
+  📁 Masaüstüne "proje" klasörü oluşturuluyor
+
+ADIM 8 — Yanıt (Ters yön)
+  FastAPI → n8n → Telegram → 📱 Telefonun
+  "Oluşturdum Efendim."
+```
+
+---
+
+## Hangi AI Modeli Ne Zaman Kullanılır?
+
+Jarvis mesajını otomatik sınıflandırır, sen bir şey belirtmezsin:
+
+| Mesaj Tipi | Seçilen Model | Hız | Örnek |
+|------------|---------------|-----|-------|
+| Basit komutlar | `qwen2.5:3b` (1.9 GB) | Çok hızlı | "Klasör aç", "Dosya sil" |
+| Bilgi/düşünme | `qwen2.5:7b` (4.7 GB) | Orta | "Python nedir?", "Şunu açıkla" |
+| Kod yazma | `qwen2.5-coder:14b` (9 GB) | Yavaş | "Fibonacci fonksiyonu yaz" |
+| Hafıza | `nomic-embed-text` (274 MB) | Anlık | Arka planda otomatik |
+
+---
+
+## n8n: Ne Zaman Kod Değişir, Ne Zaman Değişmez?
+
+### Kod DEĞİŞMEZ — Sadece n8n'de Workflow Kur
+
+| Senaryo | n8n'de Ne Yaparsın | Jarvis Kodu |
+|---------|-------------------|-------------|
+| Sabah 09:00'da hava durumu gönder | Schedule + API + Telegram | Değişmez |
+| Yeni bir Telegram komutu ekle | Telegram Trigger + HTTP Request | Değişmez |
+| E-posta gelince Telegram'a bildir | Email Trigger + Telegram | Değişmez |
+| Jarvis'e herhangi yerden soru sor | HTTP Request → `:8000/api/chat` | Değişmez |
+
+### Kod DEĞİŞİR — Yeni Yetenek Ekleme
+
+| Senaryo | Ne Yaparsın |
+|---------|-------------|
+| Jarvis'e ev otomasyonu ekle | `MCP/tools/` altına yeni tool yaz |
+| Yeni bir API entegrasyonu | `Integrations/` altına yeni client yaz |
+| Yeni bir komut tipi | `Brain/router.py`'ye yeni kategori ekle |
+
+---
+
+## Kaynak Kullanımı
+
+| Durum | CPU | RAM | Açıklama |
+|-------|-----|-----|----------|
+| Boşta (mesaj yok) | %0 | ~20 MB | Sadece port dinliyor |
+| Basit komut (3b) | %10-30 | ~2 GB | 1-3 saniye |
+| Düşünme (7b) | %20-50 | ~5 GB | 3-10 saniye |
+| Kod yazma (14b) | %40-80 | ~10 GB | 10-30 saniye |
+
+> **Mesaj gelmediğinde Jarvis neredeyse hiç kaynak harcamaz.** Sadece port dinler — bu bir web sitesinin çalışması gibi.
+
