@@ -1,11 +1,12 @@
 """
 Jarvis AI — PyInstaller Build Script
 
-Kullanım:
-    python build_exe.py
+Iki EXE olusturur:
+  1. JarvisServer.exe — Arka plan sunucusu (system tray, konsol yok)
+  2. JarvisUI.exe     — GUI arayuzu (cift tikla ac)
 
-Çıktı:
-    dist/JarvisAI/JarvisAI.exe  (tek klasör — tüm bağımlılıklar dahil)
+Kullanim:
+    python build_exe.py
 """
 
 import subprocess
@@ -13,18 +14,20 @@ import sys
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ICON_PATH = os.path.join(BASE_DIR, "assets", "jarvis.ico")
 
 
-def build():
-    # Dahil edilecek veri dosyaları ve klasörler
+def build_one(name: str, entry: str, console: bool = False) -> bool:
+    """Tek bir EXE olustur."""
+
     data_args = [
         f"--add-data={os.path.join(BASE_DIR, '.env')}{os.pathsep}.",
         f"--add-data={os.path.join(BASE_DIR, 'config.py')}{os.pathsep}.",
         f"--add-data={os.path.join(BASE_DIR, 'settings.py')}{os.pathsep}.",
         f"--add-data={os.path.join(BASE_DIR, 'logging_config.py')}{os.pathsep}.",
+        f"--add-data={os.path.join(BASE_DIR, 'assets')}{os.pathsep}assets",
     ]
 
-    # Dahil edilecek paketler (hidden imports)
     hidden_imports = [
         "--hidden-import=uvicorn.logging",
         "--hidden-import=uvicorn.loops",
@@ -50,7 +53,6 @@ def build():
         "--hidden-import=pydantic_settings",
     ]
 
-    # Dahil edilecek proje modülleri
     collect_args = [
         "--collect-submodules=Server",
         "--collect-submodules=Core",
@@ -61,47 +63,64 @@ def build():
         "--collect-submodules=Utils",
     ]
 
+    # UI icin PyQt6 ekle
+    if "ui" in name.lower():
+        hidden_imports.append("--hidden-import=PyQt6")
+        collect_args.append("--collect-submodules=UI")
+        collect_args.append("--collect-submodules=PyQt6")
+
     cmd = [
         sys.executable, "-m", "PyInstaller",
-        "--name=JarvisAI",
-        "--noconsole",              # Konsol penceresi gösterme (arka plan)
-        "--noconfirm",              # Önceki build'i otomatik sil
-        "--clean",                  # Cache temizle
+        f"--name={name}",
+        "--noconsole" if not console else "--console",
+        "--noconfirm",
+        "--clean",
+        f"--icon={ICON_PATH}",
         *data_args,
         *hidden_imports,
         *collect_args,
-        os.path.join(BASE_DIR, "jarvis_tray.py"),
+        os.path.join(BASE_DIR, entry),
     ]
 
-    print("=" * 50)
-    print("  Jarvis AI — EXE Build Başlıyor")
-    print("=" * 50)
-    print(f"  Giriş:  jarvis_tray.py")
-    print(f"  Çıkış:  dist/JarvisAI/JarvisAI.exe")
-    print(f"  Mod:    --noconsole (arka plan)")
-    print("=" * 50)
-
+    print(f"\n  Building {name}...")
     result = subprocess.run(cmd, cwd=BASE_DIR)
+    return result.returncode == 0
 
-    if result.returncode == 0:
-        exe_path = os.path.join(BASE_DIR, "dist", "JarvisAI", "JarvisAI.exe")
-        print()
-        print("=" * 50)
-        print(f"  BUILD BASARILI!")
-        print(f"  EXE: {exe_path}")
-        print(f"  Boyut: {os.path.getsize(exe_path) / (1024*1024):.1f} MB")
-        print("=" * 50)
-        print()
-        print("  Kullanim:")
-        print("    1. dist/JarvisAI/JarvisAI.exe cift tikla")
-        print("    2. System tray'de Jarvis ikonu belirir")
-        print("    3. Sag tikla -> menu secenekleri")
-        print()
-        print("  Otomatik baslangic icin:")
-        print("    Win+R -> shell:startup -> JarvisAI.exe kisayolunu buraya kopyala")
+
+def build():
+    print("=" * 50)
+    print("  Jarvis AI - EXE Build")
+    print("=" * 50)
+
+    # 1. Server EXE (arka plan, konsol yok)
+    ok1 = build_one("JarvisServer", "jarvis_tray.py", console=False)
+
+    # 2. UI EXE (GUI, konsol yok)
+    ok2 = build_one("JarvisUI", "jarvis_ui.py", console=False)
+
+    print("\n" + "=" * 50)
+    print("  SONUC")
+    print("=" * 50)
+
+    if ok1:
+        server_exe = os.path.join(BASE_DIR, "dist", "JarvisServer", "JarvisServer.exe")
+        size1 = os.path.getsize(server_exe) / (1024 * 1024) if os.path.exists(server_exe) else 0
+        print(f"  [OK] JarvisServer.exe ({size1:.1f} MB)")
+        print(f"       -> Arka plan sunucu, system tray")
+        print(f"       -> shell:startup'a kisayol ekle")
     else:
-        print(f"\n  BUILD HATASI (exit code: {result.returncode})")
-        sys.exit(1)
+        print(f"  [XX] JarvisServer.exe BUILD HATASI")
+
+    if ok2:
+        ui_exe = os.path.join(BASE_DIR, "dist", "JarvisUI", "JarvisUI.exe")
+        size2 = os.path.getsize(ui_exe) / (1024 * 1024) if os.path.exists(ui_exe) else 0
+        print(f"  [OK] JarvisUI.exe ({size2:.1f} MB)")
+        print(f"       -> Masaustune kisayol olustur")
+        print(f"       -> Cift tikla -> GUI acilir")
+    else:
+        print(f"  [XX] JarvisUI.exe BUILD HATASI")
+
+    print("=" * 50)
 
 
 if __name__ == "__main__":
