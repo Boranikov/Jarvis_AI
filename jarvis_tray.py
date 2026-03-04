@@ -83,11 +83,12 @@ class JarvisServer:
         """Sunucu thread'i."""
         import uvicorn
         from settings import get_settings
+        from Server.app import app
 
         settings = get_settings()
 
         config = uvicorn.Config(
-            "Server.app:app",
+            app,
             host=settings.api_host,
             port=settings.api_port,
             log_level=settings.log_level.lower(),
