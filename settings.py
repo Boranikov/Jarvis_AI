@@ -9,17 +9,28 @@ Mevcut config.py'ye DOKUNULMAZ — geriye uyumluluk korunur.
 Bu dosya yalnızca dağıtık sistem (FastAPI, Qdrant, Nextcloud, n8n) için kullanılır.
 """
 
+import os
+import sys
 from functools import lru_cache
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _get_env_file() -> str:
+    """EXE veya script dizinindeki .env dosyasının mutlak yolunu döndür."""
+    if getattr(sys, "frozen", False):
+        base = os.path.dirname(sys.executable)
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, ".env")
+
+
 class JarvisSettings(BaseSettings):
     """Dağıtık Jarvis sistemi için merkezi konfigürasyon."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_get_env_file(),
         env_prefix="JARVIS_",
         env_file_encoding="utf-8",
         case_sensitive=False,
