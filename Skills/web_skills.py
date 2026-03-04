@@ -9,7 +9,7 @@ import webbrowser
 
 from pydantic import BaseModel, Field
 
-from config import get_logger
+from Config.config import get_logger
 
 logger = get_logger("skills.web")
 

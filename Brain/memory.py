@@ -7,7 +7,7 @@ Konuşma geçmişini ve bekleyen işlemleri yönetir.
 from collections import deque
 from typing import Optional
 
-from config import MEMORY_HISTORY_LIMIT, get_logger
+from Config.config import MEMORY_HISTORY_LIMIT, get_logger
 
 logger = get_logger("brain.memory")
 

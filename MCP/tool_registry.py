@@ -15,7 +15,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from logging_config import get_logger
+from Config.logging_config import get_logger
 
 logger = get_logger("mcp.registry")
 

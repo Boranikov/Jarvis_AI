@@ -33,8 +33,8 @@ def section(title: str) -> None:
 def test_imports() -> bool:
     section("1. MODUL IMPORT KONTROLLERI")
     tests = [
-        ("settings",              "from settings import get_settings"),
-        ("logging_config",        "from logging_config import get_logger, setup_logging"),
+        ("settings",              "from Config.settings import get_settings"),
+        ("logging_config",        "from Config.logging_config import get_logger, setup_logging"),
         ("Server.app",            "from Server.app import app"),
         ("Server.schemas",        "from Server.schemas import ChatRequest, ChatResponse, HealthResponse"),
         ("Server.dependencies",   "from Server.dependencies import SessionManager, SharedState"),
@@ -65,7 +65,7 @@ def test_imports() -> bool:
 def test_settings() -> bool:
     section("2. SETTINGS KONFIGURASYONU")
     try:
-        from settings import get_settings
+        from Config.settings import get_settings
         s = get_settings()
         print(f"{PASS} API:       {s.api_host}:{s.api_port}")
         print(f"{PASS} Ollama:    {s.ollama_base_url}")
@@ -85,7 +85,9 @@ def test_ollama() -> bool:
     section("3. OLLAMA LLM")
     try:
         import httpx
-        r = httpx.get("http://localhost:11434/api/tags", timeout=5)
+        from Config.settings import get_settings
+        url = get_settings().ollama_base_url
+        r = httpx.get(f"{url}/api/tags", timeout=5)
         if r.status_code == 200:
             models = [m["name"] for m in r.json().get("models", [])]
             print(f"{PASS} Baglanti: OK")
@@ -111,7 +113,7 @@ def test_qdrant() -> bool:
     section("4. QDRANT VEKTOR VERITABANI (Tailscale)")
     try:
         import httpx
-        from settings import get_settings
+        from Config.settings import get_settings
         url = get_settings().qdrant_url
         r = httpx.get(f"{url}/collections", timeout=10)
         if r.status_code == 200:
@@ -134,7 +136,7 @@ def test_nextcloud() -> bool:
     section("5. NEXTCLOUD WEBDAV (Tailscale)")
     try:
         import httpx
-        from settings import get_settings
+        from Config.settings import get_settings
         s = get_settings()
         r = httpx.get(f"{s.nextcloud_url}:8080/status.php", timeout=10)
         if r.status_code == 200:
@@ -157,7 +159,7 @@ def test_n8n() -> bool:
     section("6. N8N OTOMASYON (Tailscale)")
     try:
         import httpx
-        from settings import get_settings
+        from Config.settings import get_settings
         s = get_settings()
         base = f"http://{s.remote_server_ip}:5678"
         r = httpx.get(f"{base}/healthz", timeout=10, follow_redirects=True)
@@ -203,6 +205,7 @@ def test_chat_endpoint() -> bool:
 
     def run_server():
         import uvicorn
+        from Config.settings import get_settings
         config = uvicorn.Config("Server.app:app", host="127.0.0.1", port=port, log_level="error")
         server = uvicorn.Server(config)
         server_ready.set()
@@ -214,6 +217,7 @@ def test_chat_endpoint() -> bool:
     time.sleep(1.5)  # uvicorn'un tam baslamasi icin
 
     try:
+        from Config.settings import get_settings
         r = httpx.get(f"http://127.0.0.1:{port}/api/health", timeout=10)
         if r.status_code != 200:
             print(f"{FAIL} Health endpoint: HTTP {r.status_code}")

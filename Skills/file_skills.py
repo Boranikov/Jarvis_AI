@@ -11,7 +11,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from Utils.paths import get_path
-from config import get_logger
+from Config.config import get_logger
 
 logger = get_logger("skills.file")
 

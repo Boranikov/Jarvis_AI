@@ -7,7 +7,7 @@ Dosya yolu işlemleri.
 import os
 from typing import Optional
 
-from config import get_logger
+from Config.config import get_logger
 
 logger = get_logger("utils.paths")
 

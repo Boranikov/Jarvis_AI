@@ -7,7 +7,7 @@ Kullanıcı girdisini analiz edip hangi modelin kullanılacağına karar verir.
 import re
 from typing import Optional
 
-from config import get_logger
+from Config.config import get_logger
 
 logger = get_logger("brain.router")
 

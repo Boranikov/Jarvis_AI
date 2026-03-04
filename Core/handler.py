@@ -21,7 +21,7 @@ from Utils.math_validator import (
     llm_failed_to_solve,
     solve_directly,
 )
-from config import PRESENCE_TRIGGERS, REQUIRED_PARAMS, MISSING_QUESTIONS, get_logger
+from Config.config import PRESENCE_TRIGGERS, REQUIRED_PARAMS, MISSING_QUESTIONS, get_logger
 
 logger = get_logger("core.handler")
 

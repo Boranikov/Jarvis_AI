@@ -9,7 +9,7 @@ import operator
 import re
 from typing import Any, Optional
 
-from config import get_logger
+from Config.config import get_logger
 
 logger = get_logger("utils.math_validator")
 

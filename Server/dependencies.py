@@ -11,8 +11,8 @@ from typing import Any
 import httpx
 
 from Brain.memory import Memory
-from logging_config import get_logger
-from settings import JarvisSettings, get_settings
+from Config.logging_config import get_logger
+from Config.settings import JarvisSettings, get_settings
 
 logger = get_logger("server.dependencies")
 

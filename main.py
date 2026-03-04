@@ -8,7 +8,7 @@ Türkçe konuşan, yerel bir AI asistanı.
 import sys
 import argparse
 
-from config import EXIT_COMMANDS, setup_logging
+from Config.config import EXIT_COMMANDS, setup_logging
 
 
 def run_cli() -> None:
@@ -60,14 +60,14 @@ def run_gui() -> None:
 def run_server() -> None:
     """FastAPI sunucu modunu başlat (Dağıtık Jarvis — Beyin)."""
     import uvicorn
-    from settings import get_settings
+    from Config.settings import get_settings
 
     settings = get_settings()
 
-    print(f"🧠 Jarvis Brain başlatılıyor — {settings.api_host}:{settings.api_port}")
-    print(f"📡 Ollama: {settings.ollama_base_url}")
-    print(f"🗄️  Qdrant: {settings.qdrant_url}")
-    print(f"📋 API Docs: http://localhost:{settings.api_port}/docs")
+    print(f"[Jarvis Brain] Baslatiliyor — {settings.api_host}:{settings.api_port}")
+    print(f"[Ollama] {settings.ollama_base_url}")
+    print(f"[Qdrant] {settings.qdrant_url}")
+    print(f"[API Docs] http://localhost:{settings.api_port}/docs")
 
     uvicorn.run(
         "Server.app:app",

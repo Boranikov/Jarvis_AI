@@ -7,7 +7,7 @@ Reasoning Engine'den gelen çalıştırılabilir planları yürütür.
 from typing import Any, Optional
 
 from Skills.skills_manager import perform_skill
-from config import get_logger
+from Config.config import get_logger
 
 logger = get_logger("brain.plan_executor")
 

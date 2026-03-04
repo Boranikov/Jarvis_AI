@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 import ollama
 
-from config import CODING_MODEL, get_logger, MAX_TOOL_ITERATIONS, SAFETY_MODE
+from Config.config import CODING_MODEL, get_logger, MAX_TOOL_ITERATIONS, SAFETY_MODE
 from Skills.skills_manager import perform_skill
 
 logger = get_logger("brain.coding")

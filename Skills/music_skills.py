@@ -16,7 +16,7 @@ from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
-from config import get_logger
+from Config.config import get_logger
 
 logger = get_logger("skills.music")
 

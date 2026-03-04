@@ -24,7 +24,7 @@ from Skills.music_skills import (
     play_music, pause_music, resume_music, get_current_track, next_track,
 )
 from Skills.web_skills import WebSearchParams, web_search
-from config import get_logger
+from Config.config import get_logger
 
 logger = get_logger("skills.manager")
 

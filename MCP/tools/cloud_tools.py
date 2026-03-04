@@ -8,7 +8,7 @@ FastMCP @tool dekoratörü ile tanımlanır.
 from typing import Any
 
 from MCP.tool_registry import mcp
-from logging_config import get_logger
+from Config.logging_config import get_logger
 
 logger = get_logger("mcp.tools.cloud")
 

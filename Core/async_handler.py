@@ -20,8 +20,8 @@ import ollama as ollama_sync
 from Brain.router import classify_intent
 from Brain.memory import Memory
 from Skills.skills_manager import perform_skill
-from logging_config import get_logger
-from settings import JarvisSettings
+from Config.logging_config import get_logger
+from Config.settings import JarvisSettings
 
 logger = get_logger("core.async_handler")
 

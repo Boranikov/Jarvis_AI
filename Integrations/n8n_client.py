@@ -12,8 +12,8 @@ from typing import Any
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from logging_config import get_logger
-from settings import JarvisSettings, get_settings
+from Config.logging_config import get_logger
+from Config.settings import JarvisSettings, get_settings
 
 logger = get_logger("integrations.n8n")
 

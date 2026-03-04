@@ -9,7 +9,7 @@ from typing import Any
 
 import ollama
 
-from config import FAST_MODEL, get_logger
+from Config.config import FAST_MODEL, get_logger
 
 logger = get_logger("brain.intent")
 

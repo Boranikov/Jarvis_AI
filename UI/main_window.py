@@ -18,7 +18,7 @@ from PyQt6.QtGui import QFont
 from UI.worker import AIWorker
 from UI.widgets.chat_bubble import ChatBubble
 from Brain.memory import Memory
-from config import EXIT_COMMANDS, get_logger
+from Config.config import EXIT_COMMANDS, get_logger
 
 logger = get_logger("ui.main_window")
 

@@ -22,9 +22,7 @@ def build_one(name: str, entry: str, console: bool = False) -> bool:
 
     data_args = [
         f"--add-data={os.path.join(BASE_DIR, '.env')}{os.pathsep}.",
-        f"--add-data={os.path.join(BASE_DIR, 'config.py')}{os.pathsep}.",
-        f"--add-data={os.path.join(BASE_DIR, 'settings.py')}{os.pathsep}.",
-        f"--add-data={os.path.join(BASE_DIR, 'logging_config.py')}{os.pathsep}.",
+        f"--add-data={os.path.join(BASE_DIR, 'Config')}{os.pathsep}Config",
         f"--add-data={os.path.join(BASE_DIR, 'assets')}{os.pathsep}assets",
     ]
 

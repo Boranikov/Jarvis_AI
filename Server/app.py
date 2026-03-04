@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from logging_config import get_logger, setup_logging
+from Config.logging_config import get_logger, setup_logging
 from Server.dependencies import SharedState, get_shared_state, set_shared_state
 from Server.schemas import (
     ChatRequest,
@@ -26,7 +26,7 @@ from Server.schemas import (
     ErrorResponse,
     HealthResponse,
 )
-from settings import get_settings
+from Config.settings import get_settings
 
 logger = get_logger("server.app")
 

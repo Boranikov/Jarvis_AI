@@ -82,7 +82,7 @@ class JarvisServer:
     def _run(self) -> None:
         """Sunucu thread'i."""
         import uvicorn
-        from settings import get_settings
+        from Config.settings import get_settings
         from Server.app import app
 
         settings = get_settings()
@@ -116,12 +116,16 @@ server = JarvisServer()
 
 def on_open_docs(icon, item) -> None:
     """Swagger docs'u tarayıcıda aç."""
-    webbrowser.open("http://localhost:8000/docs")
+    from Config.settings import get_settings
+    settings = get_settings()
+    webbrowser.open(f"http://127.0.0.1:{settings.api_port}/docs")
 
 
 def on_health(icon, item) -> None:
     """Health check sayfasını aç."""
-    webbrowser.open("http://localhost:8000/api/health")
+    from Config.settings import get_settings
+    settings = get_settings()
+    webbrowser.open(f"http://127.0.0.1:{settings.api_port}/api/health")
 
 
 def on_restart(icon, item) -> None:

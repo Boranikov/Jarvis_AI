@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 import ollama
 
-from config import REASONING_MODEL, REASONING_TEMPERATURE, get_logger
+from Config.config import REASONING_MODEL, REASONING_TEMPERATURE, get_logger
 
 logger = get_logger("brain.reasoning")
 

@@ -6,7 +6,7 @@ Kullanıcı arayüzü ve çıktı fonksiyonları.
 
 from typing import Any, Optional
 
-from config import get_logger
+from Config.config import get_logger
 
 logger = get_logger("core.display")
 
