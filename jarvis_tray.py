@@ -25,6 +25,17 @@ if getattr(sys, "frozen", False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ── PyInstaller Headless Fix ──────────────────────────────
+class DummyStream:
+    """sys.stdout ve sys.stderr None olduğunda (noconsole) çökmeyi önler."""
+    def write(self, data): pass
+    def flush(self): pass
+    def isatty(self): return False
+
+if sys.stdout is None: sys.stdout = DummyStream()
+if sys.stderr is None: sys.stderr = DummyStream()
+
+
 os.chdir(BASE_DIR)
 sys.path.insert(0, BASE_DIR)
 
@@ -81,22 +92,30 @@ class JarvisServer:
 
     def _run(self) -> None:
         """Sunucu thread'i."""
-        import uvicorn
-        from Config.settings import get_settings
-        from Server.app import app
+        try:
+            import uvicorn
+            from Config.settings import get_settings
+            from Server.app import app
 
-        settings = get_settings()
+            settings = get_settings()
 
-        config = uvicorn.Config(
-            app,
-            host=settings.api_host,
-            port=settings.api_port,
-            log_level=settings.log_level.lower(),
-            workers=1,
-        )
-        self._server = uvicorn.Server(config)
-        self._server.run()
-        self._running = False
+            config = uvicorn.Config(
+                app,
+                host=settings.api_host,
+                port=settings.api_port,
+                log_level=settings.log_level.lower(),
+                workers=1,
+            )
+            self._server = uvicorn.Server(config)
+            self._server.run()
+        except Exception as e:
+            import traceback
+            crash_log = os.path.join(BASE_DIR, "crash.log")
+            with open(crash_log, "a", encoding="utf-8") as f:
+                f.write(f"--- Crash at {time.ctime()} ---\n")
+                f.write(traceback.format_exc() + "\n")
+        finally:
+            self._running = False
 
     def stop(self) -> None:
         """Sunucuyu durdur."""

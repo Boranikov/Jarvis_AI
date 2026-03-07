@@ -1,370 +1,94 @@
-# Jarvis AI — Kullanım Kılavuzu
+# 📖 Jarvis AI — Kullanım Kılavuzu
 
-Jarvis, bilgisayarında ve telefonunda sana yardım eden kişisel bir AI asistanıdır.
-
----
-
-## Ne Yapabilir?
-
-| Yetenek | Örnek Komut |
-|---------|-------------|
-| **Sohbet** | "Merhaba Jarvis" |
-| **Dosya oluşturma** | "Masaüstüne notlar klasörü aç" |
-| **Dosya silme** | "İndirilenlerden rapor.txt dosyasını sil" |
-| **Müzik çalma** | "Spotify'dan müzik aç" |
-| **Bilgi soruları** | "Python nedir?" |
-| **Plan yapma** | "Bu projeyi nasıl organize edebilirim?" |
-| **Duygu analizi** | "Sıkıldım, ne yapayım?" |
-| **Kod yazma** | "Fibonacci hesaplayan Python fonksiyonu yaz" |
-| **Bulut dosya** | Nextcloud üzerinden dosya okuma/yazma |
-| **Hafıza** | Önemli bilgileri hatırlama ve geri çağırma |
+Hoş Geldiniz! Jarvis sadece metin sorguları cevaplayan standart bir sohbet robotu (Chatbot) değildir. **Doğrudan kişisel bilgisayarınız üzerindeki donanım ile etkileşime girebilen**, dosyalarınızı yönetip inceleyebilen, kod yazabilen ve müzik kontrolebilen akıllı, bağlantılı bir dijital "Hizmetkardır". (Servant).
 
 ---
 
-## Kurulum (İlk Kez)
+## 🟢 1. Neler Yapılabilir? (Komut Örnekleri)
 
-### Gereksinimler
+| Yetenek Alanı | Nasıl Sorulur? (Örnek Komutlar) | Arka Planda Neler Oluyor? |
+| :--- | :--- | :--- |
+| **☕ Sohbet / Hal Hatır** | *"Nasılsın Jarvis?", "Orada mısın?"* | Sisteme yüklü olan "Selamlama" modeli ile (1 saniyenin altında) cevap verir. |
+| **📁 Dosya Operasyonları** | *"Masaüstüne proje adında klasör aç", "İndirilenlerden test.txt'yi sil"* | Dosya okuma/yazma ve System Paths yetenekleri çalışır. İşletim sistemi `os` ve `shutil` ile güvenli şekilde fiziksel değişikliği uygular. |
+| **🎵 Spotify (Müzik & Duygu)** | *"Tarkan çal", "Müziği durdur", "Keyfim çok yok, bana bir şeyler aç"* | API üzerinden Spotify bağlantısı onaylanır. Cümledeki duygu analiz edilip hüzünlü/hareketli parça eşleştirilir veya belirttiğiniz isim direk Cihazda oynatılır. |
+| **👨‍💻 Agent Otonom Kodlama** | *"Hesap makinesi yaz", "config.py dosyasındaki şu hatayı düzelt"* | Jarvis `Coding Engine` moduna geçer. Arka planda sizden habersiz klasörlere girer, okur, gerekirse birkaç dosya oluşturup birleştirir. Tüm proje bittiğinde size haber verir. |
+| **🧠 Derin Düşünme & Plan** | *"Python'ı öğrenmek için nasıl bir plan yapmalayım?", "Şu konuyu kıyasla"* | 7 Milyar parametrelik `Reasoning` modele girer. İnternet olmadan aklındaki milyarlarca veriden yola çıkarak mantıksal plan listesi döndürür. |
+| **🧮 Matematik & Analiz** | *"18'in faktöriyeli nedir?", "1545 bölü 45 x 2"* | AI matematik modeline soru aktarılır. Aynı zamanda arka planda bir Python kütüphanesi (Sympy) sonucun gerçek bir hesap makinesiyle uyuşup uyuşmadığını doğrulayarak yanılma (halüsinasyon) payını ortadan kaldırır. |
 
-| Program | İndirme Linki | Ne İçin |
-|---------|--------------|---------|
-| **Python 3.11+** | [python.org](https://python.org) | Jarvis'in çalışması |
-| **Ollama** | [ollama.com](https://ollama.com) | Yapay zeka modelleri |
-| **Tailscale** | [tailscale.com](https://tailscale.com/download) | Cihazları birbirine bağlama |
-| **Docker** | Ubuntu sunucuda yüklü | Qdrant, Nextcloud, n8n |
+---
 
-### Adım 1: AI Modellerini İndir
+## 🟢 2. Uygulamayı Başlatmak ve Modlar
 
-Komut satırını (PowerShell) aç ve sırayla çalıştır:
+Jarvis projesi 3 temel başlatma (Çalışma) stiline sahiptir. İhtiyacınıza göre kullanabilirsiniz:
 
-```powershell
-ollama pull qwen2.5:3b
-ollama pull qwen2.5:7b
-ollama pull qwen2.5-coder:14b
-ollama pull nomic-embed-text
-```
-
-> ⏱️ Bu adım internet hızına göre 10-30 dakika sürebilir.
-
-### Adım 2: Python Paketlerini Kur
-
-```powershell
-cd c:\Users\boran\Desktop\Jarvis_Aİ
-pip install -r requirements.txt
-```
-
-### Adım 3: Tailscale Kur
-
-1. [tailscale.com/download](https://tailscale.com/download) adresinden indir
-2. Kur ve hesap oluştur (Google ile giriş yapılabilir)
-3. Ubuntu sunucuya da aynı hesapla Tailscale kur
-4. Her iki cihaz da bağlanınca hazır
-
-### Adım 4: Ubuntu Sunucuda Docker Servislerini Başlat
-
+### Mod 1: Arayüz (Masaüstü Kullanımı İçin En İyisi)
+Bu mod, en şık ve kolay kullanımlı moddur. Size PyQt6 ile yazılmış gri/siyah temalı modern bir uygulama sunar. 
+Ekranda Jarvis'le klasik sohbet edebilirsiniz. Geçmiş komutlarınızı hatırlar (Yukarı ok / Aşağı ok).
+**Başlatmak için:**
 ```bash
-cd ~/jarvis_stack
-docker compose up -d
+python main.py
 ```
+*(Eğer program (.exe) olarak build edildiyse, masaüstündeki kısa yola tıklandığında otomatik bu açılır.)*
 
----
-
-## Jarvis'i Başlatma
-
-### Yöntem 1: EXE ile (Önerilen — Arka Plan)
-
-```
-c:\Users\boran\Desktop\Jarvis_Aİ\dist\JarvisAI\JarvisAI.exe
-```
-
-Çift tıkla → saat yanında mavi **J** ikonu belirir → Jarvis arka planda çalışır.
-
-**Sağ tıkla menüsü:**
-
-| Seçenek | Ne Yapar |
-|---------|----------|
-| API Docs | Tarayıcıda API arayüzünü açar |
-| Health Check | Sistemin sağlıklı olup olmadığını gösterir |
-| Yeniden Başlat | Jarvis'i restart eder |
-| Çıkış | Jarvis'i tamamen kapatır |
-
-### Yöntem 2: PowerShell ile
-
-```powershell
-cd c:\Users\boran\Desktop\Jarvis_Aİ
+### Mod 2: System Tray / Arka Plan Servisi (Uzaktan Çalışmak & Sürekli Açık)
+Bilgisayarınızı her açtığınızda Jarvis'in arayüzünü görmek istemiyorsunuz ancak arka planda sizi dinlesin, Telegramdan ona attığınız mesaja evdeki bilgisayarda iş yapsın istiyorsunuz. Bu mod tam bunun içindir.
+Pencere açılmaz. Windows saat panelinin yanında **Küçük mavi bir Jarvis İkonu (J)** belirir.
+**Başlatmak için:**
+```bash
+python jarvis_tray.py
+# Veya argüman ile
 python main.py --server
 ```
+**Tray Menüsü (Sağ Tıklama Menüsü):** İkona sağ dıkladığınızda şu menüler gelir;
+* **API Docs:** Tarayıcıda (Swagger) API port kontrol arayüzünü açar.
+* **Health Check:** Tarayıcıda Jarvis'in sistem sağlığını gösteren durumu açar.
+* **Yeniden Başlat:** Servis arkada sıkışırsa, modeli ve bağlantıları resetler.
+* **Çıkış:** Jarvis'i ve açık kalan API kapılarını tamamen kapatıp sistemi uyutur.
 
-### Yöntem 3: Konsol Sohbet
-
-```powershell
+### Mod 3: Konsol Terminal (Geliştirici İncelemesi İçin)
+Arayüz yok. Loglar ve Düşünce yapılarının ekrana yazdırıldığı klasik yazılım geliştirici ekranı modudur. Sorun çözmek için veya hızlı işlem için harikadır.
+**Başlatmak için:**
+```bash
 python main.py --cli
 ```
 
-Doğrudan konsolda "Sen:" yazıp sohbet edersin. Çıkmak için "çıkış" yaz.
+---
 
-### Yöntem 4: Grafik Arayüz
+## 🟢 3. Uzaktan Kullanım (Telegram, n8n, Ağ Bağlantısı)
 
-```powershell
-python main.py
-```
+Jarvis'in asıl güçlü boyutu **n8n otomasyonu ve Tailscale Ağı** (Sanal Yerel Ağ) yardımıyla bilgisayarınız dışına çıkabilmesidir. Jarvis `FastAPI 8000` portundan konuşur. Sistemin ana mimari iskeleti şöyledir:
+
+> **[ Sizin Bilgisayarınız (Modellerin olduğu Yer) ]** ↔ Tailscale ↔ **[ Ubuntu Sunucu (n8n + Qdrant Hafıza) ]** ↔ İnternet ↔ **[ Telegram (Cep Telefonunuz) ]**
+
+### Uzaktan Nasıl Kullanırsınız?
+
+1. Dışarıdayken (Otobüste, iş yerinde) cep telefonunuzdan Telegram'ı açın. N8n üzerinden yetkilendirdiğiniz Bot hesabına bir mesaj atın (Örn: `"Masaüstüne YeniRapor.txt aç ve içine bugün iş var yaz."`).
+2. Mesajınız Telegram Server ↔ n8n'e gelir. Oradaki akış(workflow), Tailscale aracılığıyla ağa bağlı açık bilgisayarınıza (Jarvis'e) bu mesajı TCP protokolüyle fırlatır.
+3. Jarvis bilgisayarınızda bir `Coding Engine` yürütür, bahsi geçen dosyayı masaüstünüze oluşturur ve kodları yazar.
+4. "Masaüstünüzde rapor dosyası hazırlandı Efendim" mesajı yine aynı akış yönünde (FastAPI → n8n → Telegram) cep telefonunuza saniyeler içinde geri düşer.
+
+Siz aslında cebinizden evdeki bilgisayarınızı, yapay zeka aklıyla kullanmış olursunuz!
+
+> *Not: Bu yapının kurulması için `N8N_WEBHOOK_URL` ve güvenli bir Docker Compose yığınının uzak Ubuntu/VPS makinenizde kurulu olması gereklidir.*
 
 ---
 
-## Telegram'dan Kullanma
+## 🟢 4. Sorun Çözme & Durum Kontrolü (Hata Gidermeler)
 
-> Bu bölüm için n8n workflow'u kurulmuş olmalı.
+Zamanla Ollama takılabilir, Qdrant kapanabilir veya Spotify erişimi kopabilir. Jarvis sistemin bozuk yerini kendi kontrol edebilir:
 
-1. Telegram'da bot'unu bul (örn: `@jarvis_tuai_bot`)
-2. Mesaj yaz → Jarvis yanıtlar
-3. Hepsi bu kadar!
-
-**Örnekler:**
-
-```
-Sen:    Masaüstüne yeni-proje klasörü aç
-Jarvis: Oluşturdum Efendim.
-
-Sen:    Python nedir?
-Jarvis: Python, okunması kolay sözdizimi ile bilinen yüksek 
-        seviyeli bir programlama dilidir Efendim...
-
-Sen:    Keyfim yok, bir şeyler çal
-Jarvis: Keyfinizi yerine getirecek bir şeyler çalıyorum Efendim.
-```
-
----
-
-## Sistem Kontrolü
-
-Her şeyin çalışıp çalışmadığını kontrol etmek için:
-
-```powershell
-cd c:\Users\boran\Desktop\Jarvis_Aİ
+Konsola gidip yazın:
+```bash
 python health_check.py
 ```
+Size detaylı bir döküm sunacaktır.
 
-**Sağlıklı çıktı:**
+**Sık Karşılaşılan Sorunlar ve Çözümleri:**
 
-```
-  [OK] Imports       — 13/13 modül yüklendi
-  [OK] Settings      — Ayarlar doğru
-  [OK] Ollama        — AI modelleri erişilebilir
-  [OK] Qdrant        — Hafıza veritabanı bağlı
-  [OK] Nextcloud     — Bulut depolama bağlı
-  [OK] n8n           — Otomasyon çalışıyor
-  [OK] FastAPI       — API sunucusu hazır
-  [OK] Chat          — Gerçek sohbet testi geçti
-
-  TUMU GECTI (8/8) — Sistem tamamen hazır!
-```
+- **HATA: "LLM bağlantısı yok" veya "Ollama Timeout" :** Ollama servisi donmuş veya model indirilmemiş olabilir. Konsoldan Ollama'nın çalıştığından emin olun (Masaüstü uygulamasını açın). RAM'iniz dolmuş olabilir.
+- **HATA: Model çok mantıksız şeyler yazıyor / Çöküyor:** Bazen sistem modeli hafızadan yanlış atabilir. `jarvis_tray.py` kullanıyorsanız sağ alttaki ikona sağ tıklayıp "Yeniden Başlat" diyerek servisi tazeleyebilirsiniz.
+- **HATA: n8n üzerinden Telegram mesajım bilgisayarımdaki Jarvis'e ulaşmıyor :** Tailscale VPN bağlantınızı kontrol edin. Muhtemelen Ubuntu VPS sunucunuz bilgisayarınıza Tailscale IP'si 100.x.x.x üzerinden "Ping" atamıyordur. Bilgisayarınızdaki Tailscale uygulamasını aç kapa yapın. Port `8000` başka bir app tarafından işgal edilmiş mi bakın.
 
 ---
 
-## API ile Kullanma (Geliştiriciler İçin)
-
-Jarvis çalışırken `http://localhost:8000/docs` adresini tarayıcıda aç.
-Swagger arayüzünden tüm endpoint'leri deneyebilirsin.
-
-### Mesaj Gönder
-
-```bash
-curl -X POST http://localhost:8000/api/chat ^
-  -H "Content-Type: application/json" ^
-  -d "{\"user_id\": \"boran\", \"message\": \"Merhaba\", \"platform\": \"api\"}"
-```
-
-### Sağlık Kontrolü
-
-```bash
-curl http://localhost:8000/api/health
-```
-
----
-
-## Bilgisayar Açıldığında Otomatik Başlatma
-
-1. `Win + R` tuşlarına bas
-2. `shell:startup` yaz ve Enter'a bas
-3. Açılan klasöre `dist\JarvisAI\JarvisAI.exe` dosyasının kısayolunu kopyala
-4. Artık bilgisayar her açıldığında Jarvis otomatik başlar
-
----
-
-## Sorun Giderme
-
-| Sorun | Çözüm |
-|-------|-------|
-| "Ollama erişilemedi" | Ollama uygulamasını aç veya `ollama serve` çalıştır |
-| "Qdrant erişilemedi" | Ubuntu'da `docker compose ps` ile kontrol et, çalışmıyorsa `docker compose up -d` |
-| "Port 8000 kullanımda" | Önceki Jarvis'i kapat: Görev Yöneticisi → python.exe → Görevi Sonlandır |
-| Telegram'dan yanıt gelmiyor | n8n workflow aktif mi? Toggle'ı kontrol et |
-| Tailscale bağlantı yok | Tailscale uygulamasını aç, bağlı olduğunu kontrol et |
-| EXE açılmıyor | `dist\JarvisAI\.env` dosyası var mı kontrol et |
-
----
-
-## Dosya Yapısı (Meraklılar İçin)
-
-```
-Jarvis_Aİ/
-├── main.py              ← Giriş noktası (--cli / --server / GUI)
-├── jarvis_tray.py       ← System tray (arka plan çalışma)
-├── settings.py          ← Ayarlar (IP'ler, modeller, portlar)
-├── .env                 ← Gizli anahtarlar (şifreler)
-├── health_check.py      ← Sistem kontrolü
-├── build_exe.py         ← EXE oluşturma
-│
-├── Server/              ← API sunucusu
-│   ├── app.py           ←   /api/chat ve /api/health
-│   ├── schemas.py       ←   Veri formatları
-│   └── dependencies.py  ←   Oturum yönetimi
-│
-├── Core/                ← İşlem merkezi
-│   ├── handler.py       ←   Konsol/GUI modu
-│   └── async_handler.py ←   Server modu (async)
-│
-├── Brain/               ← AI beyni
-│   ├── router.py        ←   Mesajı sınıflandırır
-│   ├── intent_engine.py ←   Komutu anlar (ne yapılacak?)
-│   ├── reasoning_engine.py ← Düşünme/planlama
-│   └── coding_engine.py ←   Kod yazma
-│
-├── Integrations/        ← Dış bağlantılar
-│   ├── qdrant_memory.py ←   Uzun vadeli hafıza
-│   ├── nextcloud_client.py ← Bulut dosyalar
-│   └── n8n_client.py    ←   Telegram bildirimleri
-│
-├── MCP/                 ← AI araçları
-│   └── tools/
-│       ├── memory_tools.py ← Hatırla/hatırlat
-│       ├── cloud_tools.py  ← Bulut dosya oku/yaz
-│       └── notification_tools.py ← Mesaj gönder
-│
-├── Skills/              ← Yetenekler (dosya, müzik, web)
-└── dist/JarvisAI/       ← EXE çıktısı
-    └── JarvisAI.exe     ← Çift tıkla ve çalıştır
-```
-
----
-
-## Mimari: Nerede Ne Çalışır?
-
-```
-┌──────────────────────────────────────────────────────┐
-│  🧠 BU BİLGİSAYAR (Windows — 100.82.212.6)          │
-│                                                      │
-│  ┌─────────────┐   ┌────────────┐   ┌─────────────┐ │
-│  │ FastAPI      │   │ Ollama     │   │ Skills      │ │
-│  │ Gateway      │──▶│ (AI Beyin) │   │ (Dosya vb.) │ │
-│  │ :8000        │   │ :11434     │   │             │ │
-│  └──────┬───────┘   └────────────┘   └─────────────┘ │
-│         │  Kodlar + Model + Yetenekler BURDA çalışır  │
-└─────────┼────────────────────────────────────────────┘
-          │ Tailscale VPN (şifreli tünel)
-┌─────────┼────────────────────────────────────────────┐
-│  🖥️ UBUNTU SUNUCU (100.119.172.35)                   │
-│         │                                             │
-│  ┌──────┴───────┐  ┌───────────┐  ┌──────────────┐  │
-│  │ n8n          │  │ Qdrant    │  │ Nextcloud    │  │
-│  │ (Otomasyon)  │  │ (Hafıza)  │  │ (Dosyalar)   │  │
-│  │ :5678        │  │ :6333     │  │ :8080        │  │
-│  └──────────────┘  └───────────┘  └──────────────┘  │
-│       Bu sunucu sadece VERİ SAKLAR ve İLETİR         │
-└──────────────────────────────────────────────────────┘
-```
-
-### Her Bileşen Ne Yapar?
-
-| Bileşen | Nerede | Ne Yapar | Benzetme |
-|---------|--------|----------|----------|
-| **Ollama** | Bu PC | AI modellerini çalıştırır, düşünür | Beyin |
-| **FastAPI** | Bu PC | Dışarıdan gelen istekleri karşılar | Kapı |
-| **Router** | Bu PC | Mesajı hangi modelin cevaplayacağını belirler | Yönlendirici |
-| **Skills** | Bu PC | Dosya aç, müzik çal gibi eylemleri yapar | Eller |
-| **n8n** | Sunucu | Telegram mesajını alır, Jarvis'e iletir | Postacı |
-| **Qdrant** | Sunucu | Jarvis'in uzun vadeli hafızası | Dosya dolabı |
-| **Nextcloud** | Sunucu | Bulut dosya depolama | USB bellek |
-| **Tailscale** | Her ikisi | İki cihazı şifreli bağlar | Özel yol |
-
----
-
-## Bir Mesajın Tam Yolculuğu
-
-Telefondan "Masaüstüne proje klasörü aç" yazıyorsun:
-
-```
-ADIM 1 — Telefon
-  📱 Telegram'da mesaj yazıyorsun
-
-ADIM 2 — İnternet
-  ☁️ Telegram sunucusu mesajı n8n'e iletiyor
-
-ADIM 3 — n8n (Ubuntu Sunucu)
-  ⚙️ n8n mesajı alıyor, Jarvis'e gönderiyor:
-     → POST http://100.82.212.6:8000/api/chat
-
-ADIM 4 — FastAPI (Bu PC)
-  🌐 İsteği alıyor → işleme veriyor
-
-ADIM 5 — Router (Bu PC)
-  🧭 "Bu basit bir komut" → qwen2.5:3b seçiliyor
-
-ADIM 6 — Ollama (Bu PC)
-  🤖 Model mesajı anlıyor:
-     → {"action": "create_folder", "name": "proje"}
-
-ADIM 7 — Skills (Bu PC)
-  📁 Masaüstüne "proje" klasörü oluşturuluyor
-
-ADIM 8 — Yanıt (Ters yön)
-  FastAPI → n8n → Telegram → 📱 Telefonun
-  "Oluşturdum Efendim."
-```
-
----
-
-## Hangi AI Modeli Ne Zaman Kullanılır?
-
-Jarvis mesajını otomatik sınıflandırır, sen bir şey belirtmezsin:
-
-| Mesaj Tipi | Seçilen Model | Hız | Örnek |
-|------------|---------------|-----|-------|
-| Basit komutlar | `qwen2.5:3b` (1.9 GB) | Çok hızlı | "Klasör aç", "Dosya sil" |
-| Bilgi/düşünme | `qwen2.5:7b` (4.7 GB) | Orta | "Python nedir?", "Şunu açıkla" |
-| Kod yazma | `qwen2.5-coder:14b` (9 GB) | Yavaş | "Fibonacci fonksiyonu yaz" |
-| Hafıza | `nomic-embed-text` (274 MB) | Anlık | Arka planda otomatik |
-
----
-
-## n8n: Ne Zaman Kod Değişir, Ne Zaman Değişmez?
-
-### Kod DEĞİŞMEZ — Sadece n8n'de Workflow Kur
-
-| Senaryo | n8n'de Ne Yaparsın | Jarvis Kodu |
-|---------|-------------------|-------------|
-| Sabah 09:00'da hava durumu gönder | Schedule + API + Telegram | Değişmez |
-| Yeni bir Telegram komutu ekle | Telegram Trigger + HTTP Request | Değişmez |
-| E-posta gelince Telegram'a bildir | Email Trigger + Telegram | Değişmez |
-| Jarvis'e herhangi yerden soru sor | HTTP Request → `:8000/api/chat` | Değişmez |
-
-### Kod DEĞİŞİR — Yeni Yetenek Ekleme
-
-| Senaryo | Ne Yaparsın |
-|---------|-------------|
-| Jarvis'e ev otomasyonu ekle | `MCP/tools/` altına yeni tool yaz |
-| Yeni bir API entegrasyonu | `Integrations/` altına yeni client yaz |
-| Yeni bir komut tipi | `Brain/router.py`'ye yeni kategori ekle |
-
----
-
-## Kaynak Kullanımı
-
-| Durum | CPU | RAM | Açıklama |
-|-------|-----|-----|----------|
-| Boşta (mesaj yok) | %0 | ~20 MB | Sadece port dinliyor |
-| Basit komut (3b) | %10-30 | ~2 GB | 1-3 saniye |
-| Düşünme (7b) | %20-50 | ~5 GB | 3-10 saniye |
-| Kod yazma (14b) | %40-80 | ~10 GB | 10-30 saniye |
-
-> **Mesaj gelmediğinde Jarvis neredeyse hiç kaynak harcamaz.** Sadece port dinler — bu bir web sitesinin çalışması gibi.
-
+> 🎉 **Jarvis'i geliştirmek, kod katarak yeni komutlar ekletmek veya Mimarisine göz atmak isterseniz; `DEVELOPER_GUIDE.md` dosyasına bakmalısınız.**

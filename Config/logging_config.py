@@ -45,13 +45,17 @@ def setup_logging(log_level: str = "DEBUG", log_format: str = "console") -> None
         structlog.processors.UnicodeDecoder(),
     ]
 
+    has_tty = False
+    if sys.stderr and hasattr(sys.stderr, "isatty"):
+        has_tty = sys.stderr.isatty()
+
     if log_format == "json":
         # Production: JSON output
         renderer = structlog.processors.JSONRenderer(ensure_ascii=False)
     else:
         # Development: renkli console output
         renderer = structlog.dev.ConsoleRenderer(
-            colors=sys.stderr.isatty(),
+            colors=has_tty,
             pad_event=40,
         )
 
@@ -79,10 +83,32 @@ def setup_logging(log_level: str = "DEBUG", log_format: str = "console") -> None
     # Mevcut handler'ları temizle (çift log önleme)
     root_logger.handlers.clear()
 
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(formatter)
-    handler.setLevel(numeric_level)
-    root_logger.addHandler(handler)
+    import os
+    from logging.handlers import RotatingFileHandler
+    
+    # 1. Her halükarda bir log dosyasına yaz (Arka plan servisi için çok önemli)
+    if getattr(sys, "frozen", False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        # Config/ klasöründen bir üst dizine (root) çık
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+    log_dir = os.path.join(base_dir, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    file_handler = RotatingFileHandler(os.path.join(log_dir, "jarvis.log"), maxBytes=5*1024*1024, backupCount=2, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(numeric_level)
+    root_logger.addHandler(file_handler)
+
+    # 2. Eğer konsol varsa konsola da yaz (IDE veya console=True için)
+    if sys.stderr is not None:
+        try:
+            handler = logging.StreamHandler(sys.stderr)
+            handler.setFormatter(formatter)
+            handler.setLevel(numeric_level)
+            root_logger.addHandler(handler)
+        except Exception:
+            pass
 
     # Gürültülü kütüphaneleri sustur
     for noisy in ("httpx", "httpcore", "uvicorn.access", "watchfiles"):
