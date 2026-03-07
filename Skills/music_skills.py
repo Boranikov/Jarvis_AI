@@ -1,7 +1,7 @@
 """
 Jarvis AI - Music Skills
 
-Spotify API üzerinden müzik çalma işlemleri. Tüm parametre doğrulaması Pydantic modelleri ile yapılır.
+Spotify API üzerinden müzik çalma işlemleri. Tüm parametre doğrulaması yerel argümanlarla yapılır.
 """
 
 import os
@@ -14,37 +14,12 @@ from typing import Optional
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
 
 from Config.config import get_logger
 
 logger = get_logger("skills.music")
 
 _sp: Optional[spotipy.Spotify] = None
-
-
-# ==========================================
-# PYDANTIC MODELLERİ
-# ==========================================
-
-class PlayMusicParams(BaseModel):
-    """Müzik çalma için şema. song_name veya emotion'dan en az biri sağlanmalıdır."""
-    song_name: Optional[str] = Field(
-        None,
-        description="Aranacak şarkı veya sanatçı adı (örnek: 'Tarkan Dudu', 'Adele Someone Like You').",
-    )
-    emotion: Optional[str] = Field(
-        None,
-        description=(
-            "Duygu durumuna göre öneri: 'positive', 'negative' veya 'neutral'. "
-            "song_name belirtilmemişse bu alana göre öneri yapılır."
-        ),
-    )
-
-
-class NoParams(BaseModel):
-    """Parametre gerektirmeyen işlemler (duraklat, devam et, vb.) için boş şema."""
-    pass
 
 
 # ==========================================
@@ -168,11 +143,8 @@ def _play_by_emotion(sp: spotipy.Spotify, emotion: str) -> Optional[dict]:
 # YETENEK FONKSİYONLARI (SKILLS)
 # ==========================================
 
-def play_music(params: PlayMusicParams) -> bool:
-    """Spotify'da müzik ara ve çal. Duygu bazlı öneri desteklenir."""
-    song_name = params.song_name
-    emotion = params.emotion
-
+def play_music(song_name: Optional[str] = None, emotion: Optional[str] = None) -> bool:
+    """Spotify'da müzik ara ve çal. song_name veya emotion parametrelerinden en az biri belirtilmelidir."""
     if not song_name and not emotion:
         logger.warning("Şarkı adı veya duygu belirtilmedi")
         return False
@@ -222,7 +194,7 @@ def play_music(params: PlayMusicParams) -> bool:
         return False
 
 
-def pause_music(params: NoParams) -> bool:
+def pause_music() -> bool:
     """Çalan müziği duraklat."""
     try:
         _get_spotify().pause_playback()
@@ -233,7 +205,7 @@ def pause_music(params: NoParams) -> bool:
         return False
 
 
-def resume_music(params: NoParams) -> bool:
+def resume_music() -> bool:
     """Çalan müziği devam ettir."""
     try:
         _get_spotify().start_playback()
@@ -244,7 +216,7 @@ def resume_music(params: NoParams) -> bool:
         return False
 
 
-def next_track(params: NoParams) -> bool:
+def next_track() -> bool:
     """Sıradaki şarkıya geç."""
     try:
         _get_spotify().next_track()
@@ -255,7 +227,7 @@ def next_track(params: NoParams) -> bool:
         return False
 
 
-def get_current_track(params: NoParams) -> Optional[str]:
+def get_current_track() -> Optional[str]:
     """Şu an çalan şarkının adını ve sanatçısını döndür."""
     try:
         current = _get_spotify().current_playback()
