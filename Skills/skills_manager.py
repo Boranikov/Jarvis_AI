@@ -5,25 +5,21 @@ Tüm skill'leri tek noktadan yöneten adapter katmanı.
 
 Mimari:
 - SKILL_MAP: action → fonksiyon eşleştirmesi
-- SKILL_SCHEMA_MAP: action → Pydantic şema sınıfı eşleştirmesi
-- perform_skill(): gelen ham dict'i uygun Pydantic modeline dönüştürüp fonksiyonu çağırır.
-  Bu sayede kodun geri kalanı (handler, coding_engine, plan_executor) hâlâ dict gönderebilir.
+- perform_skill(): gelen ham dict'i alıp kwargs olarak ilgili fonksiyona geçirir.
+- get_tool_schemas(): SchemaGenerator kullanarak fonksiyonları LLM tool'larına dönüştürür.
 """
 
-from typing import Callable, Optional, Type
-
-from pydantic import BaseModel, ValidationError
+from typing import Callable, Any, Optional
 
 from Skills.file_skills import (
-    FileBaseParams, WriteFileParams, ListDirParams,
     create_file, create_folder, delete_file, delete_folder,
     list_dir_recursive, read_file, write_to_file,
 )
 from Skills.music_skills import (
-    PlayMusicParams, NoParams,
     play_music, pause_music, resume_music, get_current_track, next_track,
 )
-from Skills.web_skills import WebSearchParams, web_search
+from Skills.web_skills import web_search
+from Core.schema_generator import SchemaGenerator
 from Config.config import get_logger
 
 logger = get_logger("skills.manager")
@@ -47,42 +43,16 @@ SKILL_MAP: dict[str, Callable] = {
     "web_search":         web_search,
 }
 
-# -------------------------------------------------------
-# Aksiyon → Pydantic Şema eşleştirmesi
-# None = parametre gerektirmiyor, NoParams kullan
-# -------------------------------------------------------
-SKILL_SCHEMA_MAP: dict[str, Optional[Type[BaseModel]]] = {
-    "create_file":        FileBaseParams,
-    "create_folder":      FileBaseParams,
-    "delete_file":        FileBaseParams,
-    "delete_folder":      FileBaseParams,
-    "read_file":          FileBaseParams,
-    "write_to_file":      WriteFileParams,
-    "list_dir_recursive": ListDirParams,
-    "play_music":         PlayMusicParams,
-    "pause_music":        NoParams,
-    "resume_music":       NoParams,
-    "get_current_track":  NoParams,
-    "next_track":         NoParams,
-    "web_search":         WebSearchParams,
-}
-
-
-def perform_skill(action: str, params: dict) -> bool | str | None:
+def perform_skill(action: str, params: dict) -> Any:
     """
-    Belirtilen aksiyonu gerçekleştir.
-
-    Ham dict parametresini, aksiyona karşılık gelen Pydantic modeline dönüştürür
-    ve ilgili skill fonksiyonunu çağırır. Dönüşüm başarısız olursa hata loglanır ve
-    False döner. Bu sayede çağıran kod (handler, coding_engine, plan_executor) hiç
-    değişmeden dict göndermeye devam edebilir.
-
+    Belirtilen aksiyonu gerçekleştirir.
+    
     Args:
         action: Gerçekleştirilecek aksiyon adı (SKILL_MAP'teki bir key).
-        params: Aksiyon parametrelerini içeren ham dict.
-
+        params: Aksiyon parametrelerini içeren sözlük (kwargs olarak fonksiyona geçirilir).
+        
     Returns:
-        Skill sonucu (True/False veya bazı skill'ler için str).
+        Skill sonucu.
     """
     if not isinstance(params, dict):
         logger.error("Parametreler hatalı format: %s", type(params).__name__)
@@ -93,40 +63,30 @@ def perform_skill(action: str, params: dict) -> bool | str | None:
         logger.warning("Bilinmeyen aksiyon: %s", action)
         return False
 
-    schema_class = SKILL_SCHEMA_MAP.get(action)
-
-    # Şema sınıfı tanımlı → dict'i Pydantic'e dönüştür
-    if schema_class is not None:
-        try:
-            typed_params = schema_class(**params)
-        except ValidationError as exc:
-            logger.error("Parametre doğrulama hatası [%s]: %s", action, exc)
-            return False
-        return skill_func(typed_params)
-
-    # Şema tanımlı değil → doğrudan dict ile çağır (legacy fallback)
-    return skill_func(params)
+    try:
+        # Pydantic olmadan doğrudan Python kwargs olarak geçiriyoruz
+        return skill_func(**params)
+    except TypeError as exc:
+        logger.error("Parametre eşleşme hatası [%s]: %s", action, exc)
+        return False
+    except Exception as exc:
+        logger.error("Skill çalıştırma hatası [%s]: %s", action, exc)
+        return False
 
 
 def get_tool_schemas() -> list[dict]:
     """
     Tüm skill'lerin JSON şemalarını LLM için hazır formatta döndürür.
-    Native Function Calling (Ollama / OpenAI tool format) için kullanılır.
+    SchemaGenerator sınıfını kullanarak dinamik olarak Python docstring'lerinden okur.
 
     Returns:
         [{"type": "function", "function": {"name": ..., "description": ..., "parameters": ...}}, ...]
     """
     schemas: list[dict] = []
-    for action, schema_class in SKILL_SCHEMA_MAP.items():
-        if schema_class is None:
-            continue
-        json_schema = schema_class.model_json_schema()
-        schemas.append({
-            "type": "function",
-            "function": {
-                "name": action,
-                "description": json_schema.get("description", action),
-                "parameters": json_schema,
-            },
-        })
+    for action, func in SKILL_MAP.items():
+        try:
+            schema = SchemaGenerator.generate_tool_schema(func)
+            schemas.append(schema)
+        except Exception as exc:
+            logger.error("Şema oluşturma hatası [%s]: %s", action, exc)
     return schemas
