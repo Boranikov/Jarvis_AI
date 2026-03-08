@@ -1,55 +1,50 @@
-import json
 from langchain_community.chat_models import ChatOllama
 from langchain_core.messages import AIMessage, ToolMessage
+
 from Config.config import FAST_MODEL
 from Skills.skills_manager import get_tool_schemas, perform_skill
 from Brain.graph_state import JarvisState
 
-# Node 1: LLM
+# Performans için LLM'in global olarak tanımlanması (Döngüde sürekli yaratılmasını önler)
+_llm = ChatOllama(
+    model=FAST_MODEL,
+    temperature=0.0
+)
+_tools = get_tool_schemas()
+_llm_with_tools = _llm.bind_tools(_tools)
+
+
 def agent_node(state: JarvisState) -> JarvisState:
-    """Mesaj geçmişini alıp Ollama'ya gönderen ve Tool çağrısını tetikleyen düğüm."""
+    """Mesaj geçmişini alır, karar verir ve LLM'i tetikler."""
     messages = state["messages"]
-    #LangChain ChatOllama nesnesini oluştur
-    # Localhost varsayılan olarak tanımlıdır
+    
+    response = _llm_with_tools.invoke(messages)
 
-    llm = ChatOllama(
-        model = FAST_MODEL,
-        temperature = 0.0
-    )
+    return {"messages": [response], "error": None}
 
-    # Native Tool şemaları yükle
-    tools= get_tool_schemas()
-    llm_with_tools = llm.bind_tools(tools)
-
-    #LLM çağır
-    response = llm_with_tools.invoke(messages)
-
-    # Yeni cevabı listeye ekle
-    return {"messages": [response],"error": None}
-
-# Node: Tools
 
 def tool_node(state: JarvisState) -> JarvisState:
-    """Agent'ın çağırdığı araçları gerçekten çalıştıran düğüm."""
-
+    """Agent'ın bağladığı araçları (skills) çalıştırır ve sonucunu döner."""
     messages = state["messages"]
-
-    # Son mesajı al
     last_message = messages[-1]
+
+    # Mesaj türü AIMessage değilse veya içinde tool çağırma yoksa geç
     if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
-        # Araç çağıracak bir şey yoksa geç
         return {"messages": [], "error": "Tool call bulunmadı"}
     
     tool_messages = []
+    
     for tool_call in last_message.tool_calls:
         action_name = tool_call["name"]
         args = tool_call["args"]
+        
         try:
             result = perform_skill(action_name, args)
-            tool_res_str = f"Success. Result: {result}"
+            tool_res_str = f"Başarılı. Sonuç: {result}"
         except Exception as e:
-            tool_res_str = f"Error: {str(e)}"
-            tool_messages.append(
+            tool_res_str = f"Hata: {str(e)}"
+            
+        tool_messages.append(
             ToolMessage(
                 content=str(tool_res_str),
                 name=action_name,
