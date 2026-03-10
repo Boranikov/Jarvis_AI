@@ -6,8 +6,14 @@ def should_continue(state: JarvisState) -> str:
     """Agent düğümünden sonra akışın nereye gideceğine karar verir."""
     last_message = state["messages"][-1]
     
-    # Model araç çağırdıysa -> Tools düğümüne git
+    # Model araç çağırdıysa
     if last_message.tool_calls:
+        # Eğer çağrılan araçların arasında 'finish_task' varsa, döngüyü kır ve işlemi bitir.
+        for tool_call in last_message.tool_calls:
+            if tool_call["name"] == "finish_task":
+                return "end"
+                
+        # Başka bir araçça -> Tools düğümüne git
         return "tools"
     
     # Araç çağrısı yoksa, model doğrudan metin yanıtı üretmiştir -> Bitir

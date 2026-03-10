@@ -2,14 +2,20 @@
 Jarvis AI - Coding Engine
 
 qwen2.5-coder:14b modeli ile kodlama, hata ayıklama ve proje yönetimi.
+Otonom LangGraph Node ve Edges implementasyonu ile State Machine tabanlı çalışır.
 """
 
 import json
-from typing import Any, Optional
+from typing import Any, Optional, Annotated, TypedDict
+import operator
 
 import ollama
+from langgraph.graph import StateGraph, END
+from langgraph.types import interrupt, Command
+from langgraph.checkpoint.memory import MemorySaver
 
 from Config.config import CODING_MODEL, get_logger, MAX_TOOL_ITERATIONS, SAFETY_MODE
+from Config.settings import get_settings
 from Skills.skills_manager import perform_skill
 
 logger = get_logger("brain.coding")
@@ -20,7 +26,7 @@ _DEFAULT_PROJECT_PATH: str = "Desktop"
 SYSTEM_PROMPT: str = """
 SEN: Jarvis'in Kıdemli Baş Yazılım Mühendisisin (Lead Software Engineer).
 GÖREVİN: Kullanıcının kodlama isteklerini çözmek, proje oluşturmak, hataları ayıklamak ve tam çalışan kod yazmak.
-MODELİN: Qwen 2.5 Coder (14B).
+MODELİN: Qwen 2.5 Coder.
 VARSAYILAN PROJE YOLU: {default_path}
 Kullanıcı başka bir yol belirtmezse projeleri bu yolda oluştur.
 
@@ -70,43 +76,38 @@ Cevabın HER ZAMAN ve SADECE geçerli bir JSON objesi olmalıdır.
 Markdown kullanma. Açıklama ekleme. Sadece JSON.
 
 --- ÇIKTI FORMATI (SADECE JSON) ---
-{{{{
+{{
   "thought": "...",
   "tool": "write_to_file",
   "args": {{...}},
   "response": "Sadece final_answer için"
-}}}}
-
---- ÖRNEKLER ---
-
-Kullanıcı: "Masaüstüne hesap-makinesi adında klasör oluştur içine main.py yaz"
-
-Adım 1:
-{{"thought": "Önce hesap-makinesi klasörünü oluşturup main.py dosyasını yazmalıyım.", "tool": "write_to_file", "args": {{"path": "{default_path}\\\\hesap-makinesi", "name": "main.py", "content": "def toplama(a, b):\\n    return a + b\\n\\ndef cikarma(a, b):\\n    return a - b\\n\\nif __name__ == '__main__':\\n    print(toplama(5, 3))"}}, "response": null}}
-
-Adım 2 (araç sonucu aldıktan sonra):
-{{"thought": "main.py başarıyla oluşturuldu. İşlem tamamlandı.", "tool": "final_answer", "args": {{}}, "response": "Hesap makinesi projesini oluşturdum Efendim. main.py dosyası hazır."}}
-
----
-
-Kullanıcı: "config.py dosyasındaki hatayı bul"
-
-Adım 1:
-{{"thought": "Önce config.py dosyasının içeriğini okumam gerekiyor.", "tool": "read_file", "args": {{"path": "{default_path}\\\\Jarvis_Aİ", "name": "config.py"}}, "response": null}}
-
-Adım 2 (dosya içeriğini aldıktan sonra):
-{{"thought": "Hatayı tespit ettim: satır 15'te import yanlış yazılmış. Düzeltilmiş halini yazıyorum.", "tool": "write_to_file", "args": {{"path": "{default_path}\\\\Jarvis_Aİ", "name": "config.py", "content": "...düzeltilmiş tam kod..."}}, "response": null}}
-
-Adım 3:
-{{"thought": "Hata düzeltildi.", "tool": "final_answer", "args": {{}}, "response": "config.py dosyasındaki import hatasını düzelttim Efendim."}}
-
-Sadece JSON ile yanıt ver.
+}}
 """.format(default_path=_DEFAULT_PROJECT_PATH)
 
+class CodingState(TypedDict):
+    """Coding Graph State"""
+    messages: Annotated[list[dict], operator.add]
+    actions_taken: Annotated[list[dict], operator.add]
+    iterations: int
+    final_response: str
 
 
-def _call_model(messages: list[dict]) -> dict[str, Any]:
-    """Coding modeline istek gönder ve JSON parse et."""
+def _execute_tool(tool_name: str, args: dict[str, Any]) -> str:
+    """Araç çağrısını çalıştır ve sonucu string olarak döndür."""
+    # Handle unexpected exception internally inside execute_tool
+    try:
+        result = perform_skill(tool_name, args)
+        if isinstance(result, bool):
+            return "İşlem başarılı." if result else "İşlem başarısız."
+        if isinstance(result, str):
+            return result
+        return str(result)
+    except Exception as exc:
+        return f"Aracı çalıştırırken hata oluştu: {str(exc)}"
+
+
+def agent_node(state: CodingState) -> dict:
+    messages = state.get("messages", [])
     try:
         response = ollama.chat(
             model=CODING_MODEL,
@@ -114,136 +115,147 @@ def _call_model(messages: list[dict]) -> dict[str, Any]:
             format="json",
             options={"temperature": 0.2},
         )
-
-        return json.loads(response.message.content)
-
-    except ConnectionError as exc:
-        logger.error("Ollama bağlantı hatası: %s", exc)
-        return {"tool": "final_answer", "response": "Model bağlantısı kurulamadı Efendim.", "args": {}}
-    except json.JSONDecodeError as exc:
-        logger.error("JSON parse hatası (format=json ile olmamali): %s", exc)
-        return {"tool": "final_answer", "response": "Bir hata oluştu Efendim.", "args": {}}
+        result = json.loads(response.message.content)
+        return {"messages": [{"role": "assistant", "content": json.dumps(result, ensure_ascii=False)}]}
     except Exception as exc:
         logger.error("Coding Engine hatası: %s", exc, exc_info=True)
-        return {"tool": "final_answer", "response": "Bir hata oluştu Efendim.", "args": {}}
+        err_payload = {"tool": "final_answer", "response": f"Dahili Hata: {exc}", "args": {}}
+        return {"messages": [{"role": "assistant", "content": json.dumps(err_payload, ensure_ascii=False)}]}
 
 
+def tool_node(state: CodingState) -> Command[str]:
+    messages = state["messages"]
+    last_message = messages[-1]
+    
+    try:
+        result = json.loads(last_message["content"])
+    except:
+        return Command(goto="agent")
+         
+    tool = result.get("tool", "final_answer")
+    args = result.get("args", {})
+    thought = result.get("thought", "")
+    
+    if thought:
+        logger.debug("Düşünce: %s", thought[:150])
+    
+    if tool == "final_answer":
+        return Command(update={"final_response": result.get("response", "İşlem tamamlandı.")}, goto=END)
 
-def _execute_tool(tool_name: str, args: dict[str, Any]) -> str:
-    """Araç çağrısını çalıştır ve sonucu string olarak döndür."""
-    result = perform_skill(tool_name, args)
+    settings = get_settings()
+    
+    # Check Destructive Tools
+    if SAFETY_MODE and tool in _DESTRUCTIVE_TOOLS:
+        file_name = args.get("name", "bilinmeyen")
+        content_preview = args.get("content", "")[:300]
+        
+        # Human in the loop interaction using LangGraph interrupt
+        prompt_msg = f"Onay Bekleniyor: {tool} işlemi ({file_name}). Önizleme: {content_preview}"
+        logger.info(prompt_msg)
+        
+        # We interrupt execution and wait for outside code to resume us
+        user_response = interrupt({
+            "type": "authorization_required",
+            "action": tool,
+            "args": args,
+            "message": prompt_msg
+        })
+        
+        approved = False
+        if isinstance(user_response, bool):
+            approved = user_response
+        elif isinstance(user_response, str) and user_response.lower() in ("e", "evet", "y", "yes"):
+            approved = True
+            
+        if not approved:
+            return Command(
+                update={
+                    "actions_taken": [{"tool": tool, "args": args, "status": "rejected"}],
+                    "messages": [{"role": "user", "content": "KULLANICI BU İŞLEMİ REDDETTİ. Başka bir yol dene veya final_answer ile bitir."}],
+                    "iterations": state["iterations"] + 1
+                },
+                goto="agent"
+            )
 
-    if isinstance(result, bool):
-        return "İşlem başarılı." if result else "İşlem başarısız."
-    if isinstance(result, str):
-        return result
-    return str(result)
+    # Execute tool
+    logger.debug("Araç çalıştırılıyor: %s", tool)
+    tool_output = _execute_tool(tool, args)
+    logger.debug("Araç sonucu [%s]: %.200s", tool, tool_output)
+    
+    update_dict = {
+        "actions_taken": [{"tool": tool, "args": args, "status": "executed", "output_preview": tool_output[:300]}],
+        "messages": [{"role": "user", "content": f"ARAÇ SONUCU ({tool}):\n{tool_output}\n\nBir sonraki adımına geç. Cevabın SADECE JSON olsun."}],
+        "iterations": state["iterations"] + 1
+    }
+    
+    return Command(
+        update=update_dict,
+        goto="agent"
+    )
 
+def should_continue(state: CodingState) -> str:
+    if state["iterations"] >= MAX_TOOL_ITERATIONS:
+        return "error_handler"
+    return "tools"
 
-def process_coding_task(
-    user_input: str,
-    file_context: str = "",
-    confirm_fn: Optional[callable] = None,
-) -> dict[str, Any]:
+def error_handler(state: CodingState) -> dict:
+    logger.warning("Coding döngüsü maksimum iterasyona ulaştı (%d)", MAX_TOOL_ITERATIONS)
+    return {"final_response": "Maksimum adım sayısına ulaşıldı Efendim. Yapılan işlemler kaydedildi."}
+
+coding_graph = StateGraph(CodingState)
+coding_graph.add_node("agent", agent_node)
+coding_graph.add_node("tools", tool_node)
+coding_graph.add_node("error_handler", error_handler)
+
+coding_graph.set_entry_point("agent")
+coding_graph.add_conditional_edges("agent", should_continue, ["tools", "error_handler"])
+coding_graph.add_edge("error_handler", END)
+
+# Persistent checkpointer ekleyebiliriz (SqliteSaver vb.), şimdilik memory'de kalsın.
+memory_saver = MemorySaver()
+coding_app = coding_graph.compile(checkpointer=memory_saver)
+
+def process_coding_task(user_input: str, file_context: str = "") -> dict[str, Any]:
     """
-    Kodlama isteğini agentic döngü ile işler.
-
-
+    Kodlama isteğini asenkron yetenekli LangGraph state machine ile işler.
+    
     Args:
         user_input: Kullanıcı girdisi
         file_context: Ek bağlam bilgisi (opsiyonel)
-        confirm_fn: Yazma/silme onayı için callback (opsiyonel).
-                     None ise CLI'da input() ile sorulur.
 
     Returns:
         {"success": bool, "response": str, "actions_taken": list}
     """
-    # Mesaj geçmişi (model hafızası)
-    messages: list[dict] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-    ]
-
-    # İlk kullanıcı prompt'u
     prompt: str = f"KULLANICI İSTEĞİ: {user_input}\n"
     if file_context:
         prompt += f"\nGENEL BAĞLAM:\n{file_context}\n"
-    messages.append({"role": "user", "content": prompt})
-
-    actions_taken: list[dict] = []
-    final_response: str = ""
-
-    for iteration in range(MAX_TOOL_ITERATIONS):
-        logger.debug("Coding döngü iterasyonu: %d", iteration + 1)
-
-        result: dict = _call_model(messages)
-        tool: str = result.get("tool", "final_answer")
-        args: dict = result.get("args", {})
-        thought: str = result.get("thought", "")
-
-        if thought:
-            logger.debug("Düşünce: %s", thought[:150])
-
-        # --- final_answer: Döngüyü bitir ---
-        if tool == "final_answer":
-            final_response = result.get("response", "İşlem tamamlandı Efendim.")
-            break
-
-        # --- Yıkıcı işlemler: Onay iste ---
-        if SAFETY_MODE and tool in _DESTRUCTIVE_TOOLS:
-            # Onay bilgisi hazırla
-            file_name: str = args.get("name", "bilinmeyen")
-            content_preview: str = ""
-            if tool == "write_to_file":
-                full_content = args.get("content", "")
-                content_preview = full_content[:500]
-                if len(full_content) > 500:
-                    content_preview += "\n... (devamı var)"
-
-            # Onay mekanizması
-            approved: bool = False
-            if confirm_fn:
-                approved = confirm_fn(tool, file_name, content_preview)
-            else:
-                # CLI varsayılan onay
-                print(f"\n{'='*60}")
-                print(f"  Jarvis [{tool}] → {file_name}")
-                print(f"{'='*60}")
-                if content_preview:
-                    print(f"{content_preview}")
-                    print(f"{'='*60}")
-                user_confirm: str = input("Onaylıyor musunuz? (E/H): ").strip().lower()
-                approved = user_confirm in ("e", "evet", "y", "yes")
-
-            if not approved:
-                # Reddedildi — modele bildir ve devam et
-                messages.append({"role": "assistant", "content": json.dumps(result, ensure_ascii=False)})
-                messages.append({"role": "user", "content": "KULLANICI BU İŞLEMİ REDDETTİ. Başka bir yol dene veya final_answer ile bitir."})
-                actions_taken.append({"tool": tool, "args": args, "status": "rejected"})
-                continue
-
-        # --- Aracı çalıştır ---
-        tool_output: str = _execute_tool(tool, args)
-        actions_taken.append({"tool": tool, "args": args, "status": "executed", "output_preview": tool_output[:200]})
-
-        logger.debug("Araç sonucu [%s]: %.200s", tool, tool_output)
-
-        # Model'e sonucu geri gönder (conversation devam etsin)
-        messages.append({"role": "assistant", "content": json.dumps(result, ensure_ascii=False)})
-        messages.append({
-            "role": "user",
-            "content": (
-                f"ARAÇ SONUCU ({tool}):\n{tool_output}\n\n"
-                "Bir sonraki adımına geç. Cevabın SADECE JSON olsun."
-            ),
-        })
-
-    else:
-        # Döngü limiti aşıldı
-        logger.warning("Coding döngüsü maksimum iterasyona ulaştı (%d)", MAX_TOOL_ITERATIONS)
-        final_response = "Maksimum adım sayısına ulaşıldı Efendim. Yapılan işlemler kaydedildi."
-
-    return {
-        "success": True,
-        "response": final_response,
-        "actions_taken": actions_taken,
+        
+    initial_state = {
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt}
+        ],
+        "actions_taken": [],
+        "iterations": 0,
+        "final_response": ""
     }
+    
+    config = {
+        "configurable": {"thread_id": "coding_task_1"},
+        "recursion_limit": MAX_TOOL_ITERATIONS * 3
+    }
+    
+    try:
+        final_state = coding_app.invoke(initial_state, config=config)
+        return {
+            "success": True,
+            "response": final_state.get("final_response", ""),
+            "actions_taken": final_state.get("actions_taken", [])
+        }
+    except Exception as exc:
+        logger.error("Coding task sırasında grafikte kesilme/hata: %s", exc)
+        return {
+            "success": False,
+            "response": f"İşlem sırasında beklenmedik bir hata oluştu: {exc}",
+            "actions_taken": []
+        }

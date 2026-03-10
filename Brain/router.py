@@ -1,233 +1,118 @@
 """
-Jarvis AI - Model Router
+Jarvis AI - Semantic Router
 
-Kullanıcı girdisini analiz edip hangi modelin kullanılacağına karar verir.
+Kullanıcı girdisini analiz edip hangi modelin veya yeteneğin kullanılacağına
+anlamsal (semantic) vektörler üzerinden karar verir.
 """
 
-import re
 from typing import Optional
 
-from Config.config import get_logger
+from semantic_router import Route, RouteLayer
+from semantic_router.encoders import OllamaEncoder
+from Config.settings import get_settings
+from Config.logging_config import get_logger
 
 logger = get_logger("brain.router")
 
-# Keyword Sets
+_route_layer = None
 
-# Tek kelimelik reasoning trigger'ları (token match)
-_REASONING_WORD_TRIGGERS: frozenset[str] = frozenset({
-    "nedir", "nelerdir", "nasıl", "neden", "niçin",
-    "kim", "hangi", "kaç",
-    "açıkla", "anlat", "öğret", "detay",
-    "plan", "planla", "adım", "adımlar", "strateji",
-    "analiz", "düşün", "değerlendir",
-    "karşılaştır", "fark", "avantaj", "dezavantaj",
-    "öneri", "öner", "tavsiye",
-})
+def _get_route_layer() -> RouteLayer:
+    """Lazy initializing for route layer."""
+    global _route_layer
+    if _route_layer is None:
+        settings = get_settings()
+        
+        encoder = OllamaEncoder(
+            model=settings.embedding_model,
+            base_url=settings.ollama_base_url
+        )
+        
+        # Kodlama (Coding) Rotası
+        coding_route = Route(
+            name="coding",
+            utterances=[
+                "hesap makinesi kodu yaz",
+                "python scripti oluştur",
+                "bug'ı bul",
+                "fonksiyonu refactor et",
+                "şunu optimize et",
+                "hata nerede",
+                "dosyasına şu kodu ekle",
+                "uygulama yaz",
+            ],
+            score_threshold=0.6,
+        )
+        
+        # Mantık (Reasoning) Rotası
+        reasoning_route = Route(
+            name="reasoning",
+            utterances=[
+                "mimari nasıl çalışır",
+                "bunun farkı nedir",
+                "neden böyle bir hata alıyorum",
+                "bunu bana açıkla",
+                "nasıl yapabilirim",
+                "hangi veritabanı daha iyi",
+                "plan oluştur",
+                "stresliyim yardım et",
+                "canım sıkkın",
+                "moralim bozuk",
+            ],
+            score_threshold=0.6,
+        )
 
-# Çok kelimelik reasoning trigger'ları (substring match zorunlu)
-_REASONING_PHRASE_TRIGGERS: tuple[str, ...] = (
-    "ne zaman", "ne kadar", "tarif et", "analiz et", "yardım et",
-)
+        # Hızlı (Fast Action/Chat) Rotası
+        fast_route = Route(
+            name="fast",
+            utterances=[
+                "merhaba",
+                "nasılsın",
+                "orda mısın",
+                "klasör oluştur",
+                "dosya sil",
+                "müzik çal",
+                "şarkıyı durdur",
+                "internette ara",
+                "saat kaç",
+            ],
+            score_threshold=0.6,
+        )
 
-# Hızlı aksiyon kelimeleri (token match)
-_FAST_ACTION_KEYWORDS: frozenset[str] = frozenset({
-    "oluştur", "aç", "sil", "kaldır", "klasör", "dosya",
-    "çal", "müzik", "şarkı", "spotify",
-    "ara", "araştır", "google", "internette",
-    "merhaba", "selam", "günaydın", "nasılsın", "naber",
-})
-
-# Çok kelimelik hızlı aksiyon trigger'ları
-_FAST_PHRASE_TRIGGERS: tuple[str, ...] = (
-    "iyi akşamlar", "ne haber",
-)
-
-# Matematik kelimeleri (token match)
-_MATH_WORD_KEYWORDS: frozenset[str] = frozenset({
-    "kare", "karekök", "üslü", "üzeri", "faktöriyel",
-    "hesapla", "çöz", "denklem", "eşitlik",
-    "toplam", "çarp", "böl", "çıkar", "ekle",
-})
-
-# Matematik operatörleri (karakter match — yalnızca belirsiz durumlar için)
-_MATH_OPERATORS: frozenset[str] = frozenset({
-    "+", "*", "/", "^",
-})
-
-# Dosya aksiyon kelimeleri (çoklu işlem tespiti için)
-_FILE_ACTION_KEYWORDS: frozenset[str] = frozenset({
-    "oluştur", "aç", "sil", "kaldır",
-})
-
-# Sıralı işlem ifadeleri
-_SEQUENTIAL_KEYWORDS: frozenset[str] = frozenset({
-    "içine", "sonra", "ardından", "içinde",
-})
-
-_SEQUENTIAL_PHRASE: tuple[str, ...] = ("daha sonra",)
-
-# Basit soru kelimeleri (fast model yeterli)
-_SIMPLE_QUESTION_KEYWORDS: frozenset[str] = frozenset({
-    "mısın", "misin",
-})
-
-_SIMPLE_QUESTION_PHRASES: tuple[str, ...] = (
-    "orada mısın", "orda mısın",
-)
-
-_MATH_PATTERN: re.Pattern = re.compile(r"\d+\s*[\+\-\*\/\^]\s*\d+")
-
-# Duygu Keyword'leri
-_EMOTION_KEYWORD_MAP: dict[str, str] = {
-    # Olumsuz
-    "sinirli": "negative",
-    "kızgın": "negative",
-    "öfkeli": "negative",
-    "sıkıldım": "negative",
-    "sıkılıyorum": "negative",
-    "üzgün": "negative",
-    "mutsuz": "negative",
-    "yorgun": "negative",
-    "stresli": "negative",
-    "bunaldım": "negative",
-    # Olumlu
-    "mutlu": "positive",
-    "heyecanlı": "positive",
-    "meraklı": "positive",
-    "ilgili": "positive",
-    # Belirsizlik
-    "kararsız": "neutral",
-}
-
-# Çok kelimelik duygu ifadeleri
-_EMOTION_PHRASE_MAP: dict[str, str] = {
-    "canım sıkkın": "negative",
-    "moralim bozuk": "negative",
-    "hayal kırıklığı": "negative",
-    "kafam karışık": "neutral",
-    "emin değilim": "neutral",
-    "anlamadım": "neutral",
-    "keyfim yok": "negative"
-}
-
-# Kodlama kelimeleri (token match) — Çok spesifik olmalı, false positive vermez
-_CODING_KEYWORDS: frozenset[str] = frozenset({
-    "kodla", "fonksiyon", "class", "bug",
-    "refactor", "debug", "script", "import",
-    "değişken", "metod", "modül",
-    "yazılım", "algoritma",
-})
-
-# Çok kelimelik kodlama ifadeleri (substring match)
-_CODING_PHRASE_TRIGGERS: tuple[str, ...] = (
-    "kod yaz", "kodu yaz", "optimize et", "hata bul", "bug fix",
-    "dosyasını düzelt", "dosyasını oku", "kodu düzelt",
-    "fonksiyon ekle", "class ekle", "refactor et",
-    # Dosya içine kod yazma kalıpları
-    "uygulama kodu", "uygulaması kodu", "kod yazdır",
-    "içine yaz", "program yaz", "programla", "script yaz",
-    "python kodu", "java kodu", "c++ kodu",
-)
-
-# Hızlı token-bazlı duygu seti (classify_intent'de kullanılır)
-_EMOTION_ALL_WORDS: frozenset[str] = frozenset(_EMOTION_KEYWORD_MAP.keys())
+        _route_layer = RouteLayer(encoder=encoder, routes=[coding_route, reasoning_route, fast_route])
+        logger.info("Semantic Router başarıyla başlatıldı.")
+        
+    return _route_layer
 
 
 def classify_intent(user_input: str) -> str:
     """Kullanıcı girdisini analiz edip 'coding', 'reasoning' veya 'fast' döndürür."""
-    text: str = user_input.lower().strip()
-    tokens: list[str] = text.split()
-    token_set: frozenset[str] = frozenset(tokens)
-
-    # 0) Kodlama tespiti (en yüksek öncelik)
-    if token_set & _CODING_KEYWORDS:
-        return "coding"
-    if any(phrase in text for phrase in _CODING_PHRASE_TRIGGERS):
-        return "coding"
-
-    # 1) Soru işareti → genelde reasoning
-    if "?" in text:
-        # Basit sorular hızlı modelle yeterli
-        if token_set & _SIMPLE_QUESTION_KEYWORDS or any(p in text for p in _SIMPLE_QUESTION_PHRASES):
-            return "fast"
-        return "reasoning"
-
-    # 2) Duygu durumu
-    if token_set & _EMOTION_ALL_WORDS:
-        return "reasoning"
-    # Çok kelimelik duygu ifadesi kontrolü
-    if any(phrase in text for phrase in _EMOTION_PHRASE_MAP):
-        return "reasoning"
-
-    # 3) Reasoning trigger'ları (token match)
-    if token_set & _REASONING_WORD_TRIGGERS:
-        return "reasoning"
-    if any(phrase in text for phrase in _REASONING_PHRASE_TRIGGERS):
-        return "reasoning"
-
-    # 4) Çoklu işlem tespiti
-    action_count: int = len(token_set & _FILE_ACTION_KEYWORDS)
-    if action_count >= 2:
-        # "ve" bağlacı ile çoklu işlem
-        if " ve " in text:
-            return "reasoning"
-        # Sıralı işlem ifadeleri
-        if token_set & _SEQUENTIAL_KEYWORDS or any(p in text for p in _SEQUENTIAL_PHRASE):
-            return "reasoning"
-
-    # 5) Matematik tespiti
-    if token_set & _MATH_WORD_KEYWORDS:
-        return "reasoning"
-    # Operatör karakter kontrolü
-    if any(op in text for op in _MATH_OPERATORS):
-        return "reasoning"
-    # Sayı + operatör + sayı paterni (derlenmiş regex)
-    if _MATH_PATTERN.search(text):
-        return "reasoning"
-
-    # 6) Hızlı aksiyon kelimeleri
-    if token_set & _FAST_ACTION_KEYWORDS:
+    if not user_input.strip():
         return "fast"
-    if any(phrase in text for phrase in _FAST_PHRASE_TRIGGERS):
+        
+    try:
+        route_layer = _get_route_layer()
+        match = route_layer(user_input)
+        
+        if match.name == "coding":
+            return "coding"
+        if match.name == "reasoning":
+            return "reasoning"
+            
         return "fast"
+    except Exception as exc:
+        logger.error(f"Semantic Router Hatası: {exc}")
+        return "fast" # Fallback
 
-    # 7) Varsayılan
-    return "fast"
 
-
+# Duygu analizi için basit LLM bazlı veya fast keyword fallback
 def detect_emotion(user_input: str) -> dict[str, object]:
-    """Kullanıcı girdisinden duygu durumu tespit et."""
-    text: str = user_input.lower()
-    tokens: list[str] = text.split()
-    detected_keywords: list[str] = []
-    categories_found: set[str] = set()
-
-    # Token-bazlı kontrol (O(T), T = token sayısı)
-    for token in tokens:
-        category: Optional[str] = _EMOTION_KEYWORD_MAP.get(token)
-        if category:
-            detected_keywords.append(token)
-            categories_found.add(category)
-
-    # Çok kelimelik ifade kontrolü
-    for phrase, category in _EMOTION_PHRASE_MAP.items():
-        if phrase in text:
-            detected_keywords.append(phrase)
-            categories_found.add(category)
-
-    if detected_keywords:
-        # Öncelik: negative > positive > neutral
-        if "negative" in categories_found:
-            final_category = "negative"
-        elif "positive" in categories_found:
-            final_category = "positive"
-        else:
-            final_category = "neutral"
-
-        return {
-            "detected": True,
-            "category": final_category,
-            "keywords": detected_keywords,
-        }
-
+    """
+    (Opsiyonel) Emotion Detection logic.
+    Şu an basit tutuldu, ileride LLM tabanlı Extraction'a geçirilecek.
+    """
+    text = user_input.lower()
+    if any(w in text for w in ["sinirli", "kızgın", "öfkeli", "sıkıldım", "üzgün", "mutsuz", "yorgun"]):
+        return {"detected": True, "category": "negative", "keywords": []}
+    if any(w in text for w in ["mutlu", "heyecanlı"]):
+        return {"detected": True, "category": "positive", "keywords": []}
     return {"detected": False, "category": None, "keywords": []}

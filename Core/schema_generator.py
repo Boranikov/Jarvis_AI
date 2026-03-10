@@ -54,10 +54,17 @@ class SchemaGenerator:
             # Type_map'ten JSON schema karşılığını bul
             json_type = cls.TYPE_MAP.get(param_type, "string")
             
-            # Not: Docstring parsing eklenip özellik açıklamaları da zenginleştirilebilir.
+            # Parametre açıklamasını docstring'den çekmeye çalış
+            param_desc = f"The {param_name} parameter."
+            if docstring:
+                import re
+                match = re.search(rf"{param_name}\b[^:]*:\s*([^\n]*)", docstring)
+                if match:
+                    param_desc = match.group(1).strip()
+            
             properties[param_name] = {
                 "type": json_type,
-                "description": f"The {param_name} parameter."
+                "description": param_desc
             }
 
         # 3. Adım: Ollama/OpenAI standart formatında sözlüğü (dict) oluştur.

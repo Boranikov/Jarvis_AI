@@ -15,29 +15,56 @@ def run_cli() -> None:
     """Konsol tabanlı arayüzü çalıştır."""
     from Brain.memory import Memory
     from Core.handler import process_input, OutputMode
-    from Core.display import print_header
+    from Core.display import print_header, console, print_jarvis_response
+    import logging
+
+    import asyncio
 
     print_header()
     memory = Memory()
 
-    while True:
-        try:
-            user_input: str = input("Sen: ").strip()
-        except (KeyboardInterrupt, EOFError):
-            print("\nJarvis: Hoşça kalın efendim!")
-            break
+    async def _cli_loop():
+        while True:
+            try:
+                user_input: str = console.input("[bold #3B82F6]Sen:[/bold #3B82F6] ").strip()
+            except (KeyboardInterrupt, EOFError):
+                print_jarvis_response("Hoşça kalın efendim")
+                break
 
-        # Çıkış
-        if user_input.lower() in EXIT_COMMANDS:
-            print("\nJarvis: Hoşça kalın efendim!")
-            break
+            # Çıkış
+            if user_input.lower() in EXIT_COMMANDS:
+                print_jarvis_response("Hoşça kalın efendim")
+                break
 
-        # Boş girdi
-        if not user_input:
-            continue
+            # Boş girdi
+            if not user_input:
+                continue
+                
+            # Debug toggle
+            if user_input.lower() == "/debug on":
+                jarvis_logger = logging.getLogger("jarvis")
+                jarvis_logger.setLevel(logging.DEBUG)
+                for handler in jarvis_logger.handlers:
+                    handler.setLevel(logging.DEBUG)
+                logging.getLogger("httpx").setLevel(logging.DEBUG)
+                print_jarvis_response("Debug modu AÇILDI. Arka plan işlemleri detaylı gösterilecek.")
+                continue
+            elif user_input.lower() == "/debug off":
+                jarvis_logger = logging.getLogger("jarvis")
+                jarvis_logger.setLevel(logging.WARNING)
+                for handler in jarvis_logger.handlers:
+                    handler.setLevel(logging.WARNING)
+                logging.getLogger("httpx").setLevel(logging.WARNING)
+                print_jarvis_response("Debug modu KAPATILDI. Sadece kritik hatalar gösterilecek.")
+                continue
 
-        # Ana işlem — unified API (pending, presence, routing hepsi burada)
-        process_input(user_input, memory, OutputMode.CLI)
+            # Ana işlem — unified API (pending, presence, routing hepsi burada)
+            await process_input(user_input, memory, OutputMode.CLI)
+
+    try:
+        asyncio.run(_cli_loop())
+    except KeyboardInterrupt:
+        pass
 
 
 def run_gui() -> None:
@@ -83,6 +110,14 @@ def main() -> None:
     """Ana fonksiyon — GUI, CLI veya Server modunu başlat."""
     # Logging altyapısını ilk iş olarak kur
     setup_logging()
+    
+    # FastMCP Toollarını sisteme kaydet
+    from MCP.tool_registry import register_all_tools
+    register_all_tools()
+    
+    # Dinamik Eklentileri (Plugins) belleğe entegre et
+    from Core.plugin_loader import load_all_plugins
+    load_all_plugins()
 
     parser = argparse.ArgumentParser(
         description="Jarvis AI Assistant - Türkçe konuşan yerel AI asistanı"

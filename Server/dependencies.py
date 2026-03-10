@@ -100,6 +100,11 @@ class SharedState:
             limits=httpx.Limits(max_connections=50, max_keepalive_connections=10),
             follow_redirects=True,
         )
+        
+        # Dinamik Eklentileri Yükle (Hot-Reloading)
+        from Core.plugin_loader import load_all_plugins
+        load_all_plugins()
+
         logger.info(
             "shared_state_started",
             api_host=self.settings.api_host,

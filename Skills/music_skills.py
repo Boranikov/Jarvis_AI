@@ -1,7 +1,8 @@
 """
 Jarvis AI - Music Skills
 
-Spotify API üzerinden müzik çalma işlemleri. Tüm parametre doğrulaması yerel argümanlarla yapılır.
+Spotify API üzerinden müzik çalma işlemleri. 
+Dependency Injection ve Clean Code prensiplerine uygun olarak MusicPlayer sınıfı ile sarmalanmıştır.
 """
 
 import os
@@ -9,6 +10,7 @@ import random
 import time
 import threading
 import webbrowser
+import re
 from typing import Optional
 
 import spotipy
@@ -18,13 +20,6 @@ from dotenv import load_dotenv
 from Config.config import get_logger
 
 logger = get_logger("skills.music")
-
-_sp: Optional[spotipy.Spotify] = None
-
-
-# ==========================================
-# YARDIMCI / DAHİLİ YAPILAR
-# ==========================================
 
 _EMOTION_MUSIC_MAP: dict[str, dict] = {
     "negative": {
@@ -50,13 +45,204 @@ _DEFAULT_EMOTION_CONFIG: dict = {
     "target_energy": 0.6,
 }
 
+def clean_music_query(text: str) -> str:
+    """Gelen metinden 'çal', 'aç', 'oynat' gibi eylem kelimelerini temizler."""
+    if not text:
+        return ""
+    # Eylem kelimelerini ve gereksiz boşlukları temizle
+    patterns = [
+        r"\bçal(armısın|armısın?|ar mısın|ar mısın?|sana|sın)?\b",
+        r"\baç(armısın|ar mısın|sana|sın)?\b",
+        r"\boynat\b",
+        r"\bdinle(t|telim)?\b"
+    ]
+    cleaned = text.lower()
+    for p in patterns:
+        cleaned = re.sub(p, "", cleaned, flags=re.IGNORECASE)
+    
+    return cleaned.strip()
 
-def _get_spotify() -> spotipy.Spotify:
-    """Lazy Spotify client — ilk çağrıda başlatılır."""
-    global _sp
-    if _sp is None:
+
+class MusicPlayer:
+    """Spotify Yetenekleri Sınıfı (Dependency Injection için hazır)."""
+
+    def __init__(self, sp: spotipy.Spotify) -> None:
+        self.sp = sp
+
+    def _get_active_device(self) -> Optional[str]:
+        """Aktif Spotify cihazını bul."""
+        try:
+            devices = self.sp.devices()
+            if not devices or not devices.get("devices"):
+                return None
+            for device in devices["devices"]:
+                if device.get("is_active"):
+                    return device["id"]
+            return devices["devices"][0]["id"]
+        except Exception as exc:
+            logger.error("Cihaz listesi alınamadı: %s", exc)
+            return None
+
+    def _launch_spotify_async(self, timeout: int = 10) -> Optional[str]:
+        """Spotify'ı başlat ve aktif cihazı non-blocking olarak bekle."""
+        result_holder: dict = {"device_id": None}
+        ready = threading.Event()
+
+        def _poll() -> None:
+            try:
+                os.startfile("spotify:")
+                time.sleep(2)
+                for _ in range(int((timeout - 2) / 0.5)):
+                    device_id = self._get_active_device()
+                    if device_id:
+                        result_holder["device_id"] = device_id
+                        ready.set()
+                        return
+                    time.sleep(0.5)
+            except Exception as exc:
+                logger.error("Spotify başlatma hatası: %s", exc)
+            ready.set()
+
+        threading.Thread(target=_poll, daemon=True).start()
+        ready.wait(timeout=timeout)
+        return result_holder["device_id"]
+
+    def _ensure_device(self) -> Optional[str]:
+        """Aktif cihaz bul, yoksa Spotify'ı başlat."""
+        return self._get_active_device() or self._launch_spotify_async()
+
+    def _play_by_emotion(self, emotion: str) -> Optional[dict]:
+        """Duygu durumuna göre Spotify Recommendations API ile şarkı bul."""
+        config = _EMOTION_MUSIC_MAP.get(emotion.lower(), _DEFAULT_EMOTION_CONFIG)
+        genres = config["genres"][:2]
+        try:
+            results = self.sp.recommendations(
+                seed_genres=genres,
+                target_valence=config["target_valence"],
+                target_energy=config["target_energy"],
+                limit=10,
+            )
+            tracks = results.get("tracks", [])
+            if not tracks:
+                return None
+            track = random.choice(tracks)
+            return {
+                "id": track["id"],
+                "name": track["name"],
+                "artist": track["artists"][0]["name"],
+                "url": track["external_urls"].get("spotify", ""),
+            }
+        except Exception as exc:
+            logger.error("Recommendation API hatası: %s", exc)
+            return None
+
+    def play_music(self, song_name: Optional[str] = None, artist_name: Optional[str] = None, emotion: Optional[str] = None) -> str:
+        """Spotify'da müzik ara ve çal."""
+        song_name = clean_music_query(song_name)
+        artist_name = clean_music_query(artist_name)
+        
+        if not song_name and not emotion:
+            return "Şarkı adı veya duygu belirtilmedi."
+
+        try:
+            if emotion and not song_name:
+                rec = self._play_by_emotion(emotion)
+                if not rec:
+                    return f"'{emotion}' duygusu için öneri bulunamadı."
+                track_id = rec["id"]
+                track_name = rec["name"]
+                artist_name = rec["artist"]
+                track_url = rec["url"]
+            else:
+                # Gelişmiş Spotify araması: artist ve track ayrı verilmişse filter ekle
+                query = ""
+                if song_name and artist_name:
+                    query = f"track:{song_name} artist:{artist_name}"
+                elif song_name:
+                    query = song_name
+                
+                logger.info(f"Spotify sorgusu: {query}")
+                sonuc = self.sp.search(q=query, limit=1, type="track")
+                
+                if not sonuc or not sonuc["tracks"]["items"]:
+                    # Eğer gelişmiş arama bulamazsa, basic fallback dene
+                    fallback_query = f"{artist_name if artist_name else ''} {song_name if song_name else ''}".strip()
+                    if fallback_query:
+                        logger.info(f"Spotify fallback sorgusu: {fallback_query}")
+                        sonuc = self.sp.search(q=fallback_query, limit=1, type="track")
+                    
+                if not sonuc or not sonuc["tracks"]["items"]:
+                    return f"Spotify'da '{query}' için uygun bir sonuç bulunamadı."
+                        
+                track = sonuc["tracks"]["items"][0]
+                track_id = track["id"]
+                track_name = track["name"]
+                artist_name = track["artists"][0]["name"]
+                track_url = track["external_urls"].get("spotify", "")
+
+            device_id = self._ensure_device()
+
+            if device_id:
+                self.sp.start_playback(device_id=device_id, uris=[f"spotify:track:{track_id}"])
+                return f"SUCCESS: {artist_name} grubundan {track_name} şarkısını çalıyorum efendim."
+            elif track_url:
+                webbrowser.open(track_url)
+                return f"SUCCESS (WEB): Spotify uygulaması başlatılamadı ancak {artist_name} - {track_name} tarayıcıda açılıyor."
+            else:
+                return "Spotify cihazı bulunamadı ve URL alınamadı."
+
+        except spotipy.exceptions.SpotifyException as exc:
+            return f"Spotify API hatası: {str(exc)}"
+        except Exception as exc:
+            return f"Müzik çalma sırasında beklenmeyen hata oluştu: {str(exc)}"
+
+    def pause_music(self) -> str:
+        """Çalan müziği duraklat."""
+        try:
+            self.sp.pause_playback()
+            return "Müzik duraklatıldı."
+        except Exception as exc:
+            return f"Müzik duraklatılırken hata oluştu: {str(exc)}"
+
+    def resume_music(self) -> str:
+        """Çalan müziği devam ettir."""
+        try:
+            self.sp.start_playback()
+            return "Müzik devam ediyor."
+        except Exception as exc:
+            return f"Devam etme sırasında hata oluştu: {str(exc)}"
+
+    def next_track(self) -> str:
+        """Sıradaki şarkıya geç."""
+        try:
+            self.sp.next_track()
+            return "Sonraki parçaya geçildi."
+        except Exception as exc:
+            return f"Sıradaki parçaya geçerken hata oluştu: {str(exc)}"
+
+    def get_current_track(self) -> str:
+        """Şu an çalan şarkının adını ve sanatçısını döndür."""
+        try:
+            current = self.sp.current_playback()
+            if not current or not current.get("item"):
+                return "Şu an çalan bir müzik bulunamadı."
+            item = current["item"]
+            return f"Şu an çalıyor: {item['name']} - {item['artists'][0]['name']}"
+        except Exception as exc:
+            return f"Çalan şarkı alınamadı: {str(exc)}"
+
+
+# ==========================================
+# Geriye Dönük Uyumluluk ve Instance Factory
+# ==========================================
+
+_player_instance: Optional[MusicPlayer] = None
+
+def _get_player() -> MusicPlayer:
+    global _player_instance
+    if _player_instance is None:
         load_dotenv()
-        _sp = spotipy.Spotify(
+        sp = spotipy.Spotify(
             auth_manager=SpotifyOAuth(
                 client_id=os.getenv("SPOTIPY_CLIENT_ID"),
                 client_secret=os.getenv("SPOTIPY_CLIENT_SECRET"),
@@ -64,177 +250,32 @@ def _get_spotify() -> spotipy.Spotify:
                 scope="user-modify-playback-state,user-read-playback-state",
             )
         )
-    return _sp
+        _player_instance = MusicPlayer(sp)
+    return _player_instance
 
+def play_specific_music(song_name: str, artist_name: str) -> str:
+    """Spotify'da müzik ara ve çal.
+    
+    song_name: Çalınacak şarkının SADECE adı (Örn: 'Yürek', 'Hello'). KESİNLİKLE 'çal', 'aç', 'dinlet' gibi eylem kelimeleri EKLEME. 
+    artist_name: Şarkının sanatçısı (Örn: 'Duman', 'Adele'). Varsa MUTLAKA DOLDUR.
+    """
+    return _get_player().play_music(song_name, artist_name, None)
 
-def _get_active_device(sp: spotipy.Spotify) -> Optional[str]:
-    """Aktif Spotify cihazını bul."""
-    try:
-        devices = sp.devices()
-        if not devices or not devices.get("devices"):
-            return None
-        for device in devices["devices"]:
-            if device.get("is_active"):
-                return device["id"]
-        return devices["devices"][0]["id"]
-    except Exception as exc:
-        logger.error("Cihaz listesi alınamadı: %s", exc)
-        return None
+def play_emotion_music(emotion: str) -> str:
+    """Duygu durumuna göre Spotify'dan müzik çal.
+    
+    emotion: Çalınacak müziğin hissi/duygusu (öneri için).
+    """
+    return _get_player().play_music(None, None, emotion)
 
+def pause_music() -> str:
+    return _get_player().pause_music()
 
-def _launch_spotify_async(sp: spotipy.Spotify, timeout: int = 10) -> Optional[str]:
-    """Spotify'ı başlat ve aktif cihazı non-blocking olarak bekle."""
-    result_holder: dict = {"device_id": None}
-    ready = threading.Event()
+def resume_music() -> str:
+    return _get_player().resume_music()
 
-    def _poll() -> None:
-        try:
-            os.startfile("spotify:")
-            time.sleep(2)
-            for _ in range(int((timeout - 2) / 0.5)):
-                device_id = _get_active_device(sp)
-                if device_id:
-                    result_holder["device_id"] = device_id
-                    ready.set()
-                    return
-                time.sleep(0.5)
-        except Exception as exc:
-            logger.error("Spotify başlatma hatası: %s", exc)
-        ready.set()
+def next_track() -> str:
+    return _get_player().next_track()
 
-    threading.Thread(target=_poll, daemon=True).start()
-    ready.wait(timeout=timeout)
-    return result_holder["device_id"]
-
-
-def _ensure_device(sp: spotipy.Spotify) -> Optional[str]:
-    """Aktif cihaz bul, yoksa Spotify'ı başlat."""
-    return _get_active_device(sp) or _launch_spotify_async(sp)
-
-
-def _play_by_emotion(sp: spotipy.Spotify, emotion: str) -> Optional[dict]:
-    """Duygu durumuna göre Spotify Recommendations API ile şarkı bul."""
-    config = _EMOTION_MUSIC_MAP.get(emotion.lower(), _DEFAULT_EMOTION_CONFIG)
-    genres = config["genres"][:2]
-    try:
-        results = sp.recommendations(
-            seed_genres=genres,
-            target_valence=config["target_valence"],
-            target_energy=config["target_energy"],
-            limit=10,
-        )
-        tracks = results.get("tracks", [])
-        if not tracks:
-            logger.warning("Duygu '%s' için öneri bulunamadı", emotion)
-            return None
-        track = random.choice(tracks)
-        return {
-            "id": track["id"],
-            "name": track["name"],
-            "artist": track["artists"][0]["name"],
-            "url": track["external_urls"].get("spotify", ""),
-        }
-    except Exception as exc:
-        logger.error("Recommendation API hatası: %s", exc)
-        return None
-
-
-# ==========================================
-# YETENEK FONKSİYONLARI (SKILLS)
-# ==========================================
-
-def play_music(song_name: Optional[str] = None, emotion: Optional[str] = None) -> bool:
-    """Spotify'da müzik ara ve çal. song_name veya emotion parametrelerinden en az biri belirtilmelidir."""
-    if not song_name and not emotion:
-        logger.warning("Şarkı adı veya duygu belirtilmedi")
-        return False
-
-    try:
-        sp = _get_spotify()
-
-        if emotion and not song_name:
-            rec = _play_by_emotion(sp, emotion)
-            if not rec:
-                logger.warning("Duygu bazlı öneri bulunamadı")
-                return False
-            track_id = rec["id"]
-            track_name = rec["name"]
-            artist_name = rec["artist"]
-            track_url = rec["url"]
-        else:
-            sonuc = sp.search(q=song_name, limit=1, type="track")
-            if not sonuc or not sonuc["tracks"]["items"]:
-                logger.warning("Spotify'da '%s' bulunamadı", song_name)
-                return False
-            track = sonuc["tracks"]["items"][0]
-            track_id = track["id"]
-            track_name = track["name"]
-            artist_name = track["artists"][0]["name"]
-            track_url = track["external_urls"].get("spotify", "")
-
-        device_id = _ensure_device(sp)
-
-        if device_id:
-            sp.start_playback(device_id=device_id, uris=[f"spotify:track:{track_id}"])
-            logger.info("Çalıyor: %s - %s", track_name, artist_name)
-        elif track_url:
-            webbrowser.open(track_url)
-            logger.info("Web'de açılıyor: %s - %s", track_name, artist_name)
-        else:
-            logger.warning("Spotify başlatılamadı ve URL bulunamadı")
-            return False
-
-        return True
-
-    except spotipy.exceptions.SpotifyException as exc:
-        logger.error("Spotify API hatası: %s", exc)
-        return False
-    except Exception as exc:
-        logger.error("Müzik çalma hatası: %s", exc)
-        return False
-
-
-def pause_music() -> bool:
-    """Çalan müziği duraklat."""
-    try:
-        _get_spotify().pause_playback()
-        logger.info("Müzik duraklatıldı")
-        return True
-    except Exception as exc:
-        logger.error("Duraklama hatası: %s", exc)
-        return False
-
-
-def resume_music() -> bool:
-    """Çalan müziği devam ettir."""
-    try:
-        _get_spotify().start_playback()
-        logger.info("Müzik devam ediyor")
-        return True
-    except Exception as exc:
-        logger.error("Devam etme hatası: %s", exc)
-        return False
-
-
-def next_track() -> bool:
-    """Sıradaki şarkıya geç."""
-    try:
-        _get_spotify().next_track()
-        logger.info("Sonraki parçaya geçildi")
-        return True
-    except Exception as exc:
-        logger.error("Sıradaki parça hatası: %s", exc)
-        return False
-
-
-def get_current_track() -> Optional[str]:
-    """Şu an çalan şarkının adını ve sanatçısını döndür."""
-    try:
-        current = _get_spotify().current_playback()
-        if not current or not current.get("item"):
-            return None
-        item = current["item"]
-        return f"{item['name']} - {item['artists'][0]['name']}"
-    except Exception as exc:
-        logger.error("Şu an çalan şarkı alınamadı: %s", exc)
-        return None
+def get_current_track() -> str:
+    return _get_player().get_current_track()

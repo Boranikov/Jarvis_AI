@@ -38,12 +38,12 @@ class JarvisSettings(BaseSettings):
     )
 
     # ── LLM Modelleri ──────────────────────────────────────
-    fast_model: str = "qwen2.5:3b"
+    fast_model: str = "qwen3:1.7b"
     reasoning_model: str = "qwen2.5:7b"
     coding_model: str = "qwen2.5-coder:14b"
     llm_temperature: float = 0.1
     reasoning_temperature: float = 0.3
-    ollama_base_url: str = "http://localhost:11434"
+    ollama_base_url: str = "http://127.0.0.1:11434"
 
     # ── API Sunucusu ───────────────────────────────────────
     api_host: str = "0.0.0.0"
@@ -52,10 +52,13 @@ class JarvisSettings(BaseSettings):
     cors_origins: list[str] = ["*"]
 
     # ── Uzak Sunucu (Ubuntu — Tailscale) ──────────────────
-    remote_server_ip: str = "100.119.172.35"  # Ubuntu Tailscale IP
+    # Tailscale Mesh VPN varsayılan IP'sidir. Cihazlar aynı Tailnet ağında ise
+    # port-forwarding gerekmeden güvenli iletişim kurulur. 
+    # Geçersiz kılmak için .env dosyasında JARVIS_REMOTE_SERVER_IP kullanın.
+    remote_server_ip: str = "100.119.172.35"
 
     # ── Qdrant (Vektörel Hafıza — Tailscale) ───────────
-    qdrant_url: str = "http://100.119.172.35:6333"
+    qdrant_url: str = "http://100.119.172.35:6333" # Fallback Tailscale IP
     qdrant_collection: str = "jarvis_memory"
     qdrant_timeout: float = 10.0
 
@@ -64,13 +67,13 @@ class JarvisSettings(BaseSettings):
     embedding_dim: int = 768
 
     # ── Nextcloud (Bulut Depolama — Tailscale) ─────────
-    nextcloud_url: str = "http://100.119.172.35"
+    nextcloud_url: str = "http://100.119.172.35" # Fallback Tailscale IP
     nextcloud_user: str = "jarvis"
     nextcloud_pass: SecretStr = SecretStr("")
     nextcloud_webdav_path: str = "/remote.php/dav/files"
 
     # ── n8n (Otomasyon / Webhook — Tailscale) ────────
-    n8n_webhook_url: str = "http://100.119.172.35:5678/webhook/jarvis-callback"
+    n8n_webhook_url: str = "http://100.119.172.35:5678/webhook/jarvis-callback" # Fallback Tailscale IP
     n8n_timeout: float = 15.0
 
     # ── Hafıza ─────────────────────────────────────────────

@@ -23,7 +23,7 @@ def set_memory_client(client: Any) -> None:
 
 
 @mcp.tool()
-async def remember(
+async def store_long_term_memory(
     text: str,
     category: str = "general",
     user_id: str = "system",
@@ -58,7 +58,7 @@ async def remember(
 
 
 @mcp.tool()
-async def recall(
+async def search_long_term_memory(
     query: str,
     top_k: int = 5,
     category: str | None = None,

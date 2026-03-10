@@ -13,7 +13,8 @@ import subprocess
 import sys
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# build_exe.py is inside Scripts/, so BASE_DIR should be its parent
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ICON_PATH = os.path.join(BASE_DIR, "assets", "jarvis.ico")
 
 

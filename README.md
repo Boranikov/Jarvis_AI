@@ -1,8 +1,8 @@
-# 🤖 Jarvis AI — Akıllı Kişisel Asistan
+# 🤖 Jarvis AI — Akıllı Kişisel Asistan (ReAct Agent Mimarisi)
 
-Jarvis, yerel bilgisayarınız üzerinde (Tailscale ve Ollama aracılığıyla) tamamen size özel ve **ağ bağlantılı cihazlarla konuşabilen** hibrit bir Yapay Zeka kişisel asistan projesisidir. Windows sisteminde bir UI (kullanıcı arayüzü), komut satırı veya System Tray üzerinde arka plan servisi gibi çalışabilir. Aynı zamanda, n8n üzerinden Telegram veya Web tarayıcınıza bağlanarak dış dünyadan (FastAPI) da istek alır.
+Jarvis, yerel bilgisayarınız üzerinde (Tailscale ve Ollama aracılığıyla) tamamen size özel ve **ağ bağlantılı cihazlarla konuşabilen** hibrit bir Yapay Zeka kişisel asistan projesidir. Windows sisteminde bir UI (kullanıcı arayüzü), komut satırı veya System Tray üzerinde arka plan servisi gibi çalışabilir. Aynı zamanda, n8n üzerinden Telegram veya Web tarayıcınıza bağlanarak dış dünyadan (FastAPI) da istek alır.
 
-> **3 Ayrı AI Modeli** · **Otonom Kod (Agentic) Yazma** · **Spotify / Bulut (Nextcloud) Entegrasyonu** · **Sağlam API Altyapısı**
+> **LangGraph ReAct Mimarisi** · **Otonom Kod (Agentic) Yazma** · **Qdrant Vektör Hafıza (RAG)** · **FastMCP Tool Sistemi**
 
 ---
 
@@ -13,31 +13,30 @@ Asistan basit sohbetlerin ötesinde bilgisayarınızda fiziksel veya dosya bazl�
 1. **Dosya & Klasör Yönetimi:** Seçilen dizinde dosyalar oluşturma, okuma, ağaç yapısını analiz etme ve hatta dosyaları silme.
 2. **Müzik ve Medya Kontrolü:** Spotify ile tam entegre çalışır. Ruh halinize göre şarkı aratabilir, listelere ulaşabilir, çalma/durdurma başlatabilirsiniz.
 3. **Agentic Kodlama:** Sadece kod önermekle kalmaz; `write_to_file`, `list_dir_recursive` araçlarıyla birlikte bir projeyi (örn. hesap makinesi) bir disk ortamına **tam çalışan koduyla ve klasör mimarisiyle** kendi yazar. Hataları bulup refactor(düzenleme) edebilir.
-4. **Kişisel Hafıza (Qdrant):** Yapılan sohbetlerdeki bağlamı anlar ve bunu bir Vektör Veritabanı içinde vektörel kelimeler (embeddings) olarak tutar. Aylar sonra sorduğunuz bir konuyu anımsayarak sohbete dahil eder.
+4. **Kişisel Hafıza (Qdrant & RAG):** Yapılan sohbetlerdeki bağlamı anlar ve bunu bir Vektör Veritabanı içinde (Embeddings) tutar. Aylar sonra sorduğunuz bir konuyu (Örn: "Daha önce adımın ne olduğundan bahsettiğimiz konuşmayı bul") anımsayarak sohbete dahil eder.
 5. **Duygu Analizi:** Kurduğunuz cümlelerin olumlu/olumsuz duygu durumunu çıkarır, empatik yanıt verir veya sizi eğlendirmek için otomatik şarkı önerilerde bulunur.
-6. **Telegram & Bulut Erişilebilirliği:** Evde çalışan Jarvis'e cep telefonunuzdan Telegram vasıtasıyla kod yazdırabilir, sunucu (Nextcloud) üzerindeki dökümanlarınıza müdahale edebilirsiniz.
+6. **Telegram & Bulut Erişilebilirliği:** Evde çalışan Jarvis'e cep telefonunuzdan Telegram vasıtasıyla kod yazdırabilir, sunucu (Nextcloud) üzerindeki dokümanlarınıza MCP protokolüyle asenkron şekilde müdahale edebilirsiniz.
 
 ---
 
 ## 🏗️ Modüler Mimari (Tek Bakışta Yapı)
 
-Jarvis'in kodu gelişmiş bir **"Intent (Niyet) Yönlendirme"** sistemine dayanır. Sistem, kullanıcının "Ne İstediğini" tek bir ana dilde anlamaya odaklanır ve sonuca göre uygun aracı ya da AI Modelini ateşler. `Qwen2.5` Local LLM grubunun 3 farklı versiyonunu projenin beynine yerleştirilmiştir:
+Jarvis'in güncel sürümü **ReAct (Reasoning and Acting)** konseptiyle `LangGraph` altyapısı üzerine kurulmuştur. `Qwen3:1.7b` gibi süper hızlı veya `Qwen2.5-Coder:14b` gibi kodlama odaklı modellerle entegredir. Model, tek bir "Girdi" üzerinden anında aletleri (Tools/Skills) kullanıp kullanamayacağına kendi otonom karar verir.
 
-### `Brain/` (AI'ın Beyni)
-- `router.py`: İstek ilk buraya girer. İçindeki keyword, regex ve duygu analizi mekanizmalarıyla hızlıca isteğin basit bir skill (eylem) mi, plan (reasoning) mı yoksa otonom bir kod (coding) mu olacağını tespit eder. Bazen matematik denklemi gibi net mantık yapılarını ayrıştırır.
-- `intent_engine.py`: **(Hızlı düşünme modeli - qwen2.5:3b)**. En ufak LLM modelidir. Amacı saniyeden kısa sürede JSON formatında aksiyon objesi (`create_folder`, `play_music` vs.) ve argümanları (Parametreler: `{"path":"desktop", "name":"test"}`) döner.
-- `reasoning_engine.py`: **(Derin düşünme modeli - qwen2.5:7b)**. Soyut istekleri, empati durumunu, genel dünya bilgisini veya çok aşamalı (plan yapılarak ilerlenecek) komutları parçalamak için kullanılır. Planların yürütülebilir çıktılarını liste halinde döndürür.
-- `coding_engine.py`: **(Kodlama modeli - qwen2.5-coder:14b)**. Tam otonomdur (Agentic loop). Sistemi bozana kadar veya kendi hedefine ulaşana kadar (Maksimum iterasyon = 15) defalarca dosya okuma, dosya yazma işlemleri yapar. Tam çalışmayan veya "pass" ile bırakılmış kodları onaylamaz.
-- `memory.py` / `plan_executor.py`: Kısa vadeli sohbet dizilerini ve eksik parametreleri tutar, Reasoning'den çıkan sıralı planları sırayla yürütür.
+### `Brain/` (AI'ın Beyni - LangGraph)
+- `graph_router.py`: İsteklerin asenkron olarak aktığı, StateGraph düğümlerinin tutulduğu asıl orkestra şefidir.
+- `graph_nodes.py`: `agent_node` ve `tool_node` yapılarını barındırır. Model (Qwen3) düşünür (Think), araç kullanmaya karar verirse (Action), işlem `tool_node`'a kayar (Observation) ve tekrar `agent_node`'a döner. Hedef başarılı olduğunda işlemi `finish_task` aracıyla sonlandırır.
+- `coding_engine.py`: **(Kodlama Modeli - qwen2.5-coder:14b)**. Tam otonomdur (Agentic loop). Sistemi bozana kadar veya kendi hedefine ulaşana kadar (Maksimum iterasyon = 15) defalarca dosya okuma, dosya yazma işlemleri yapar. Tam çalışmayan kodları onaylamaz.
+- `memory.py`: Kısa vadeli sohbet dizilerini ve çok turlu diyalog bağlamlarını tutar.
 
 ### `Core/` & `Server/` (Kasa ve Kapı)
-- `Core/handler.py`: Bütün mantık yollarını birleştiren merkezdir. Komut neyse (CLI veya GUI tabanlı), gerekli modülü tetikler, eksik durum varsa hafızaya pending parametre düşerek soruyu kullanıcıya iade eder. Matematik doğrulayıcı çalıştırır.
-- `Server/app.py`: Jarvis, sadece PC arayüzünde değil arka planda bir **FastAPI** sunucusu olarak çalışır. `http://0.0.0.0:8000` portundan açılan uç ile Telegram (n8n Webhook) üzerinden bağlanan mesajları Server içinde izole eder, `async_handler.py` ile asenkron şekilde çözer. 
-- `Server/dependencies.py`: FastAPI State ve Context paylaşımlarını, Qdrant/Ollama/Nextcloud/Spotify bağlantı check'lerini (Lifespan Lifecycle) organize eder.
+- `Core/handler.py`: Senkron çalışan arayüz (GUI ve CLI) kullanıcılarının isteklerini LangGraph Ajanına aktaran ana işleyicidir. "Jarvis orda mısın" gibi varlık kontrollerini anında yanıtlar.
+- `Core/async_handler.py`: Asenkron çalışan FastAPI (Sunucu) uçlarının isteklerini, eşzamanlı kopmalar yaşatmaksızın doğrudan `graph_router.py` motoruna enjekte eder.
+- `Server/app.py`: Jarvis, sadece PC arayüzünde değil arka planda bir **FastAPI** sunucusu olarak çalışır. `http://0.0.0.0:8000` portundan açılan uç ile Telegram (n8n Webhook) üzerinden bağlanan iletileri (Payload) karşılar.
 
-### `Skills/` & `Integrations/` & `MCP/` (Eller ve Ayaklar)
-- `Skills/`: Modelin kullanabildiği fiziksel işlevlerdir. `file_skills.py` dosyası cihazdaki gerçek I/O (Girdi/Çıktı) okuma-yazmalarını, `music_skills.py` ise Spotipy kütüphanesi ile şarkı kontrollerini halleder. Tüm yönlendirmeler `skills_manager.py` (Dispatcher) ile tek noktadan fırlatılır.
-- `MCP/` ve `Integrations/`: Dış dünyadaki Vektör veritabanına, Tailscale tünellerine ve bulut deposuna ait yardımcı fonksiyon ve modüller klasörleridir. (Model Context Protocol).
+### `Skills/` & `MCP/` (Eller ve Ayaklar)
+- `Skills/`: Modelin kullanabildiği fiziksel işlevlerdir. `file_skills.py` cihazdaki gerçek okuma-yazmaları, `music_skills.py` ise Spotify API kontrollerini (Keskin arama ve sanitizasyon ile) halleder. Tüm lokal yetenekler ve schema dönüşümleri `skills_manager.py` ile tek noktadan fırlatılır.
+- `MCP/` (Model Context Protocol): FastMCP altyapısıyla harici uçları (Nextcloud, Qdrant RAG, Bildirim sistemleri) LLM'in anlayacağı "Tool" dizilerine standartlaştırır. Ağ üzerinden gelen bu asenkron yapı `tool_registry.py` yardımıyla senkron bir şekilde LangGraph sarmalına bağlanır.
 
 ---
 
@@ -55,10 +54,10 @@ pip install -r requirements.txt
 Jarvis gücünü Ollama üzerinden çalıştırılan model setlerinden alır.
 Aşağıdaki modelleri bilgisayarınıza indirin (RAM'iniz en az 16GB, tercihen 32GB olmalıdır):
 ```bash
-ollama pull qwen2.5:3b           # Hızlı araç tespit modeli
-ollama pull qwen2.5:7b           # Düşünme ve Planlama modeli
-ollama pull qwen2.5-coder:14b    # Kodlama modeli
-ollama pull nomic-embed-text     # Hafıza Embedding (Metni vektöre çeviren dil)
+ollama pull qwen3:1.7b           # Hızlı otonom ajans modeli (ReAct)
+ollama pull qwen2.5:7b           # Ağır muhakeme modeli
+ollama pull qwen2.5-coder:14b    # Kodlama otonom modeli
+ollama pull nomic-embed-text     # Hafıza Embedding (Metni vektöre çeviren RAG modeli)
 ```
 
 ### 3. API Anahtarları (.env Yapılandırması)
@@ -70,8 +69,8 @@ SPOTIPY_CLIENT_SECRET=your_secret
 SPOTIPY_REDIRECT_URI=http://127.0.0.1:8888/callback
 
 # (Eğer kurulduysa) Diğer Entegrasyonlar
-N8N_WEBHOOK_URL=http://.../webhook/jarvis
-QDRANT_API_KEY=...
+JARVIS_N8N_WEBHOOK_URL=http://.../webhook/jarvis
+JARVIS_QDRANT_URL=http://...:6333
 ```
 
 ### 4. Çalıştırma
@@ -83,10 +82,12 @@ Hızlı, gri-siyah tonlarda şık, modern bir sohbet baloncuğu deneyimi sunar:
 python main.py
 ```
 
-**Mod 2: Konsol (CLI)**
-Sadece terminal üzerinden, en hafif ve log detayları açık çalışan moddur:
+**Mod 2: Konsol (CLI) - Önerilen**
+Modern, büyük fontlu bir açılış ekranıyla başlar. Log detayları `/debug` komutlarıyla kontrol edilebilir:
 ```bash
 python main.py --cli
+# veya
+jarvis.bat
 ```
 
 **Mod 3: Sunucu Modu (Background Tray & Dağıtık)**
@@ -97,7 +98,7 @@ python jarvis_tray.py
 python main.py --server
 ```
 
-### 5. Sistemin Sağlığını Kontrol Etmek
+### 5. Sintemi Test Etmek
 Tüm mikroservislerin (Qdrant, Ollama, FastAPI) bağlantısını test eden yardımcı aracı çalıştırın:
 ```bash
 python health_check.py

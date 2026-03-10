@@ -64,7 +64,7 @@ class ChatResponse(BaseModel):
     action_taken: str | None = Field(
         default=None,
         description="Gerçekleştirilen aksiyon (varsa)",
-        examples=["play_music", "create_file", None],
+        examples=["play_specific_music", "create_file", None],
     )
     processing_time_ms: float = Field(
         ...,

@@ -38,7 +38,8 @@ Kullanabileceğin aksiyonlar:
 - create_folder: Klasör oluştur. Params: {"path": "desktop/documents/downloads", "name": "klasor-adi"}
 - delete_file: Dosya sil. Params: {"path": "...", "name": "..."}
 - delete_folder: Klasör sil. Params: {"path": "...", "name": "..."}
-- play_music: Müzik çal. Params: {"song_name": "şarkı adı veya sanatçı"}
+- play_specific_music: Müzik çal. Params: {"song_name": "şarkı adı", "artist_name": "sanatçı adı"}
+- play_emotion_music: Duyguya göre çal. Params: {"emotion": "duygu"}
 - web_search: İnternette ara. Params: {"name": "arama sorgusu"}
 
 Path değerleri: desktop, documents, downloads, music, pictures veya klasör yolu (örn: "desktop/proje-klasoru")
@@ -71,7 +72,7 @@ User: "Belgelerime iki klasör aç: notlar ve projeler"
 Output: {"type": "plan", "response": "Belgelerinize notlar ve projeler klasörlerini oluşturuyorum Efendim.", "emotion_detected": null, "steps": ["1. notlar klasörü oluştur", "2. projeler klasörü oluştur"], "executable_steps": [{"action": "create_folder", "params": {"path": "documents", "name": "notlar"}}, {"action": "create_folder", "params": {"path": "documents", "name": "projeler"}}], "follow_up": null}
 
 User: "Keyfim yok keyfimi yerine getirecek bir şeyler çal"
-Output: {"type": "empathy", "response": "Keyfinizi yerine getirecek bir şeyler çalıyorum Efendim.", "emotion_detected": "sad", "steps": null, "executable_steps": [{"action": "play_music", "params": {"emotion": "sad"}}], "follow_up": null}
+Output: {"type": "empathy", "response": "Keyfinizi yerine getirecek bir şeyler çalıyorum Efendim.", "emotion_detected": "sad", "steps": null, "executable_steps": [{"action": "play_emotion_music", "params": {"emotion": "sad"}}], "follow_up": null}
 
 Sadece JSON ile yanıt ver, başka açıklama ekleme.
 """

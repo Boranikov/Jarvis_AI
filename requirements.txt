@@ -29,3 +29,9 @@ mcp[cli]>=1.2.0
 # Opsiyonel — Matematik doğrulama (Utils/math_validator.py)
 # sympy>=1.12
 # numpy>=1.24.0
+
+# === Yönlendirme ve Anlamsal Analiz (Faz 5) ===
+semantic-router>=0.0.40
+
+# === CLI ve Terminal UX ===
+rich>=13.7.1

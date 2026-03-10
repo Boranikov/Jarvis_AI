@@ -29,7 +29,7 @@ Yanıtın HER ZAMAN geçerli bir JSON objesi olmalıdır. Başka hiçbir şey ek
 === ALLOWED ACTIONS (sadece type="skill" için) ===
 create_file, create_folder, delete_file, delete_folder,
 write_to_file, read_file, list_dir_recursive,
-play_music, pause_music, resume_music, next_track, get_current_track,
+play_specific_music, play_emotion_music, pause_music, resume_music, next_track, get_current_track,
 web_search, small_talk, missing_parameters, unknown, multi_action
 
 === GENEL KURALLAR ===
@@ -75,7 +75,7 @@ User: "Belgelerime klasör oluştur"
 {"type":"skill","action":"missing_parameters","reply":"Klasörün ismini belirtir misiniz Efendim?","path":"documents","name":null,"song_name":null,"query":null,"original_action":"create_folder","confidence":0.95,"parameters":{"missing":["name"]},"actions":[]}
 
 User: "Tarkan çal"
-{"type":"skill","action":"play_music","reply":"Tarkan'ı arıyorum Efendim.","path":null,"name":null,"song_name":"tarkan","query":null,"original_action":null,"confidence":0.99,"parameters":{},"actions":[]}
+{"type":"skill","action":"play_specific_music","reply":"Tarkan'ı arıyorum Efendim.","path":null,"name":null,"song_name":"öp","artist_name":"tarkan","query":null,"original_action":null,"confidence":0.99,"parameters":{},"actions":[]}
 
 User: "Python nedir?"
 {"type":"reasoning","action":"none","reply":"Python sorusunu yanıtlıyorum Efendim.","path":null,"name":null,"song_name":null,"query":null,"original_action":null,"confidence":0.97,"parameters":{},"actions":[]}

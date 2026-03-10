@@ -1,0 +1,8 @@
+"""Örnek Jarvis Eklentisidir. Aktif etmek için sonundaki .example uzantısını silin."""
+
+from MCP.tool_registry import mcp
+
+@mcp.tool()
+def get_custom_greeting(name: str) -> str:
+    """Kullanıcıya özel hissettiren bir karşılama metni döndürür."""
+    return f"Merhaba {name}, eklenti sisteminiz harika çalışıyor!"
