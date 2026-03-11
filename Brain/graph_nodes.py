@@ -14,7 +14,7 @@ def finish_task(summary: str) -> str:
 _llm = ChatOllama(
     model=FAST_MODEL,
     base_url="http://127.0.0.1:11434",
-    temperature=0.0
+    temperature=0.6
 )
 _tools = get_tool_schemas()
 
@@ -52,8 +52,10 @@ async def agent_node(state: JarvisState) -> JarvisState:
         "kullanarak kullanıcının isteklerini yerine getirmelisin.\n"
         "- Cevapların KUSURSUZ, DOĞAL ve DİLBİLGİSİ KURALLARINA UYGUN TÜRKÇE olmalıdır. İngilizce kelimeleri veya bozuk çeviri kokan cümleleri ASLA kullanma.\n"
         "- Kısa, net ve direkt çözüme odaklı cevaplar ver.\n"
+        "- Araçları (tools) çağırırken GEREKLİ TÜM PARAMETERLERİ (örneğin 'name', 'content', 'path') eksiksiz doldur. Parametreleri boş bırakma.\n"
+        "- KARMAŞIK KOD YAZMA isteklerini (Örn: 'hesap makinesi yaz', 'yılan oyunu yap') doğrudan yapmaya çalışma; bu görevler uzman sistem tarafından devralınır. Sen sadece basit dosya/klasör işlemleri ve genel asistanlık yap.\n"
         "- Kullanıcı belli bir şarkıyı çalmanı istediğinde 'play_specific_music' aracını kullan. Şarkı adını ve sanatçıyı ayırarak gönder.\n"
-        "- Araçlardan (tools) gelen sonuçları KULLANICIYA DOĞAL BİR ŞEKİLDE AKTAR. Örneğin müzik başarıyla çalınırsa, araçtan gelen gerçek sanatçı ve şarkı ismini kullanarak nazikçe bilgi ver.\n"
+        "- Araçlardan (tools) gelen sonuçları KULLANICIYA DOĞAL BİR ŞEKİLDE AKTAR. Eğer araç 'False' veya 'HATA' dönerse işlemin başarısız olduğunu kullanıcıya nazikçe bildir.\n"
         "- İSİM, MESLEK, TERCİH, YAŞ gibi kullanıcıyla ilgili ÖNEMLİ KİŞİSEL BİLGİLER verildiğinde anında 'store_long_term_memory' aracını çağırıp hafızana kaydet.\n"
         "- Kullanıcı 'benim adım ne' veya geçmişle alakalı bir şey sorarsa KESİNLİKLE 'search_long_term_memory' aracını kullanarak cevabı veri tabanında ara ve bulduğunu kullanıcıyla paylaş.\n"
         "- Yanıtlarını mutlaka 'Efendim' hitabıyla bitir."
@@ -87,9 +89,12 @@ async def tool_node(state: JarvisState) -> JarvisState:
         else:
             try:
                 result = await perform_skill(action_name, args)
-                tool_res_str = f"Başarılı. Sonuç: {result}"
+                if result is False:
+                     tool_res_str = f"HATA: {action_name} işlemi başarısız oldu veya parametreler eksik/hatalı."
+                else:
+                     tool_res_str = f"Başarılı. Sonuç: {result}"
             except Exception as e:
-                tool_res_str = f"Hata: {str(e)}"
+                tool_res_str = f"Sistem Hatası: {str(e)}"
             
         tool_messages.append(
             ToolMessage(

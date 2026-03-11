@@ -54,6 +54,8 @@ def clean_music_query(text: str) -> str:
         r"\bçal(armısın|armısın?|ar mısın|ar mısın?|sana|sın)?\b",
         r"\baç(armısın|ar mısın|sana|sın)?\b",
         r"\boynat\b",
+        r"\bdüşün\b",
+        r"\bbul(urmusun|ur musun|sana|sun)?\b",
         r"\bdinle(t|telim)?\b"
     ]
     cleaned = text.lower()
@@ -136,13 +138,18 @@ class MusicPlayer:
             logger.error("Recommendation API hatası: %s", exc)
             return None
 
-    def play_music(self, song_name: Optional[str] = None, artist_name: Optional[str] = None, emotion: Optional[str] = None) -> str:
+    def play_music(self, song_name: Optional[str] = None, artist_name: Optional[str] = None, emotion: Optional[str] = None, query: Optional[str] = None) -> str:
         """Spotify'da müzik ara ve çal."""
         song_name = clean_music_query(song_name)
         artist_name = clean_music_query(artist_name)
+        search_query = clean_music_query(query)
         
-        if not song_name and not emotion:
-            return "Şarkı adı veya duygu belirtilmedi."
+        # Eğer query varsa ama artist_name yoksa, query'yi artist_name olarak deneyebiliriz.
+        if search_query and not artist_name and not song_name:
+            artist_name = search_query
+
+        if not song_name and not artist_name and not emotion:
+            return "Şarkı adı, sanatçı veya duygu belirtilmedi."
 
         try:
             if emotion and not song_name:
@@ -154,15 +161,37 @@ class MusicPlayer:
                 artist_name = rec["artist"]
                 track_url = rec["url"]
             else:
-                # Gelişmiş Spotify araması: artist ve track ayrı verilmişse filter ekle
-                query = ""
-                if song_name and artist_name:
-                    query = f"track:{song_name} artist:{artist_name}"
-                elif song_name:
-                    query = song_name
+                # Eğer song_name boş, ama artist_name varsa (örn: "Tarkan çal")
+                if not song_name and artist_name:
+                    logger.info(f"Spotify sanatçı sorgusu: {artist_name}")
+                    sonuc = self.sp.search(q=artist_name, limit=1, type="artist")
+                    
+                    if sonuc and sonuc["artists"]["items"]:
+                        artist = sonuc["artists"]["items"][0]
+                        artist_name_found = artist["name"]
+                        artist_uri = artist["uri"]
+                        
+                        device_id = self._ensure_device()
+                        if device_id:
+                            self.sp.start_playback(device_id=device_id, context_uri=artist_uri)
+                            return f"SUCCESS: {artist_name_found} şarkılarını çalıyorum efendim."
+                        elif artist["external_urls"].get("spotify"):
+                            webbrowser.open(artist["external_urls"]["spotify"])
+                            return f"SUCCESS (WEB): {artist_name_found} tarayıcıda açılıyor."
+                        else:
+                            return "Spotify cihazı bulunamadı ve URL alınamadı."
+                    else:
+                        return f"Spotify'da '{artist_name}' isimli sanatçı bulunamadı."
                 
-                logger.info(f"Spotify sorgusu: {query}")
-                sonuc = self.sp.search(q=query, limit=1, type="track")
+                # Hem song_name var hem de artist_name varsa klasik şarki arama
+                query_str = ""
+                if song_name and artist_name:
+                    query_str = f"track:{song_name} artist:{artist_name}"
+                elif song_name:
+                    query_str = song_name
+                
+                logger.info(f"Spotify sorgusu: {query_str}")
+                sonuc = self.sp.search(q=query_str, limit=1, type="track")
                 
                 if not sonuc or not sonuc["tracks"]["items"]:
                     # Eğer gelişmiş arama bulamazsa, basic fallback dene
@@ -172,7 +201,7 @@ class MusicPlayer:
                         sonuc = self.sp.search(q=fallback_query, limit=1, type="track")
                     
                 if not sonuc or not sonuc["tracks"]["items"]:
-                    return f"Spotify'da '{query}' için uygun bir sonuç bulunamadı."
+                    return f"Spotify'da '{query_str}' için uygun bir sonuç bulunamadı."
                         
                 track = sonuc["tracks"]["items"][0]
                 track_id = track["id"]
@@ -253,13 +282,14 @@ def _get_player() -> MusicPlayer:
         _player_instance = MusicPlayer(sp)
     return _player_instance
 
-def play_specific_music(song_name: str, artist_name: str) -> str:
+def play_specific_music(song_name: Optional[str] = None, artist_name: Optional[str] = None, query: Optional[str] = None) -> str:
     """Spotify'da müzik ara ve çal.
     
     song_name: Çalınacak şarkının SADECE adı (Örn: 'Yürek', 'Hello'). KESİNLİKLE 'çal', 'aç', 'dinlet' gibi eylem kelimeleri EKLEME. 
     artist_name: Şarkının sanatçısı (Örn: 'Duman', 'Adele'). Varsa MUTLAKA DOLDUR.
+    query: Genel arama kelimesi.
     """
-    return _get_player().play_music(song_name, artist_name, None)
+    return _get_player().play_music(song_name, artist_name, None, query)
 
 def play_emotion_music(emotion: str) -> str:
     """Duygu durumuna göre Spotify'dan müzik çal.

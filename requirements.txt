@@ -2,6 +2,9 @@
 
 # LLM (Ollama Python client)
 ollama>=0.4.0
+langchain-core>=0.3.0
+langchain-ollama>=0.2.0
+langgraph>=0.2.0
 
 # GUI
 PyQt6>=6.6.0

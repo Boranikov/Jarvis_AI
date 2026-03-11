@@ -1,4 +1,7 @@
-# 🤖 Jarvis AI — Akıllı Kişisel Asistan (ReAct Agent Mimarisi)
+# 🤖 Jarvis AI — Akıllı Kişisel Asistan (ReAct Agent Mimarisi) [FINAL VERSION]
+
+> [!NOTE]
+> Bu proje geliştirme sürecinin sonuna gelmiştir. Tüm temel fonksiyonlar (ReAct Engine, MCP Entegrasyonu, Spotify ve Dosya Yetenekleri) çalışır durumdadır. Bu depo, projenin nihai ve kararlı halini temsil eder.
 
 Jarvis, yerel bilgisayarınız üzerinde (Tailscale ve Ollama aracılığıyla) tamamen size özel ve **ağ bağlantılı cihazlarla konuşabilen** hibrit bir Yapay Zeka kişisel asistan projesidir. Windows sisteminde bir UI (kullanıcı arayüzü), komut satırı veya System Tray üzerinde arka plan servisi gibi çalışabilir. Aynı zamanda, n8n üzerinden Telegram veya Web tarayıcınıza bağlanarak dış dünyadan (FastAPI) da istek alır.
 

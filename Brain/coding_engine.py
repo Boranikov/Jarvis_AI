@@ -45,6 +45,7 @@ Birden fazla dosya yazman gerekiyorsa:
 - Dosyalar arası import'ları doğru yaz.
 
 --- MEVCUT ARAÇLARIN (TOOLS) ---
+Kritik Not: Araçları çağırırken GEREKLİ TÜM parametreleri (name, path, content vb.) eksiksiz gönder.
 
 1. `list_dir_recursive`
    - Amaç: Klasördeki dosya ağacını görmek.
@@ -97,8 +98,10 @@ def _execute_tool(tool_name: str, args: dict[str, Any]) -> str:
     # Handle unexpected exception internally inside execute_tool
     try:
         result = perform_skill(tool_name, args)
+        if result is False:
+             return f"HATA: '{tool_name}' işlemi başarısız oldu. Gerekli parametrelerin (name, path, content vb.) tam ve doğru olduğundan emin ol."
         if isinstance(result, bool):
-            return "İşlem başarılı." if result else "İşlem başarısız."
+            return "İşlem başarılı."
         if isinstance(result, str):
             return result
         return str(result)

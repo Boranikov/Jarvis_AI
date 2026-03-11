@@ -12,6 +12,9 @@ from Core.display import print_debug
 from Config.config import get_logger
 
 from langchain_core.messages import HumanMessage
+from Brain.router import classify_intent, detect_emotion
+from Brain.coding_engine import process_coding_task
+from Brain.reasoning_engine import process_reasoning, format_reasoning_response
 from Brain.graph_router import app
 
 logger = get_logger("core.handler")
@@ -41,8 +44,65 @@ async def process_input(
             print_jarvis_response(reply)
         return reply if mode == OutputMode.GUI else None
     
-    logger.debug("Tüm komutlar LangGraph'a (Fast Model - Orchestrator) gönderiliyor.")
+    # 1. Niyet Analizi (Semantic Routing)
+    intent = classify_intent(user_input)
+    logger.debug(f"Tespit edilen niyet: {intent}")
+
+    # 2. Rotalama
+    if intent == "coding":
+        return await _handle_coding_task(user_input, memory, mode)
+    elif intent == "reasoning":
+        return await _handle_reasoning_task(user_input, memory, mode)
+    
+    # Varsayılan: Hızlı Model / LangGraph
+    logger.debug("Komut LangGraph'a (Fast Model) gönderiliyor.")
     return await _handle_fast_model(user_input, memory, mode)
+
+
+async def _handle_coding_task(user_input: str, memory: Memory, mode: OutputMode) -> Optional[str]:
+    """Kodlama isteklerini uzman CodingEngine'e gönderir."""
+    logger.debug("Kodlama isteği uzman Coding Engine'e yönlendiriliyor...")
+    
+    # Coding Engine senkron çalışıyor (kendi içinde loop barındırdığı için), thread'de çalıştır
+    import asyncio
+    result = await asyncio.to_thread(process_coding_task, user_input)
+    
+    reply = result.get("response", "Kodlama işlemi tamamlanamadı Efendim.")
+    
+    if mode == OutputMode.CLI:
+        from Core.display import print_jarvis_response
+        print_jarvis_response(reply)
+    
+    memory.add(user_input, reply)
+    return reply if mode == OutputMode.GUI else None
+
+
+async def _handle_reasoning_task(user_input: str, memory: Memory, mode: OutputMode) -> Optional[str]:
+    """Mantıksal/Düşünsel istekleri ReasoningEngine'e gönderir."""
+    logger.debug("Muhakeme isteği uzman Reasoning Engine'e yönlendiriliyor...")
+    
+    emotion_ctx = detect_emotion(user_input)
+    
+    import asyncio
+    result = await asyncio.to_thread(process_reasoning, user_input, emotion_ctx)
+    
+    reply = format_reasoning_response(result)
+    
+    if mode == OutputMode.CLI:
+        from Core.display import print_jarvis_response
+        print_jarvis_response(reply)
+        
+    # Eğer çalıştırılabilir adımlar varsa, onları da uygula (Basit implementasyon)
+    if result.get("executable_steps"):
+        from Skills.skills_manager import perform_skill
+        for step in result["executable_steps"]:
+            action = step.get("action")
+            params = step.get("params", {})
+            if action:
+                await perform_skill(action, params)
+
+    memory.add(user_input, reply)
+    return reply if mode == OutputMode.GUI else None
 
 
 async def _handle_fast_model(

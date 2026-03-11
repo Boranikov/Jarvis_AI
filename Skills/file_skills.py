@@ -38,7 +38,11 @@ def _resolve_target(name: Optional[str], location: Optional[str], operation: str
 # ==========================================
 
 def create_file(name: str, path: Optional[str] = None) -> bool:
-    """Belirtilen konumda yeni bir dosya oluşturur. Uzantı yoksa .txt eklenir."""
+    """Belirtilen konumda yeni bir dosya oluşturur. Uzantı yoksa .txt eklenir.
+    
+    name: Oluşturulacak dosyanın adı (Örn: 'notlar.txt').
+    path: Dosyanın oluşturulacağı dizin (Örn: 'desktop', 'documents'). Boş bırakılırsa varsayılan yol kullanılır.
+    """
     target = _resolve_target(name,path,"create_file")
     if not target:
        return False
@@ -58,7 +62,11 @@ def create_file(name: str, path: Optional[str] = None) -> bool:
 
 
 def read_file(name: str, path: Optional[str] = None) -> str | bool:
-    """Belirtilen dosyanın içeriğini okur ve string olarak geri döndürür"""
+    """Belirtilen dosyanın içeriğini okur ve string olarak geri döndürür.
+    
+    name: Okunacak dosyanın adı (Örn: 'notlar.txt').
+    path: Dosyanın bulunduğu dizin (Örn: 'desktop').
+    """
     target = _resolve_target(name, path, "read_file")
     if not target:
        return "HATA: Dosya yolu bulunamadı"
@@ -77,7 +85,12 @@ def read_file(name: str, path: Optional[str] = None) -> str | bool:
 
 
 def write_to_file(name: str, content: str, path: Optional[str] = None) -> bool:
-    """Belirtilen dosyaya metin yazar. Dosya yoksa oluşturur, varsa üzerine yazar"""
+    """Belirtilen dosyaya metin yazar. Dosya yoksa oluşturur, varsa üzerine yazar.
+    
+    name: Yazılacak dosyanın adı (Örn: 'hesap_makinesi.py').
+    content: Dosya içine yazılacak içerik/kod.
+    path: Dosyanın yazılacağı dizin (Örn: 'desktop/kodlar').
+    """
     target = _resolve_target(name, path, "write_to_file")
     if not target:
        return False
@@ -94,7 +107,11 @@ def write_to_file(name: str, content: str, path: Optional[str] = None) -> bool:
 
 
 def list_dir_recursive(name: str, path: Optional[str] = None) -> str:
-    """Belirtilen klasörün içinde bulunan dosyları ve klasörleri ağaç şeklinde listeler."""
+    """Belirtilen klasörün içinde bulunan dosyları ve klasörleri ağaç şeklinde listeler.
+    
+    name: Listelenecek klasörün adı.
+    path: Klasörün bulunduğu üst dizin.
+    """
     target = _resolve_target(name, path, "list_dir_recursive")
 
     if not target or not os.path.exists(target):
@@ -113,7 +130,11 @@ def list_dir_recursive(name: str, path: Optional[str] = None) -> str:
 
 
 def create_folder(name: str, path: Optional[str] = None) -> bool:
-    """Belirtilen yerde klasör oluşturur"""
+    """Belirtilen yerde yeni bir klasör oluşturur.
+    
+    name: Oluşturulacak klasörün adı (Örn: 'yeni_proje').
+    path: Klasörün oluşturulacağı üst dizin (Örn: 'desktop').
+    """
     target = _resolve_target(name, path, "create_folder")
     if not target:
        return False
@@ -128,7 +149,11 @@ def create_folder(name: str, path: Optional[str] = None) -> bool:
 
 
 def delete_file(name: str, path: Optional[str] = None) -> bool:
-    """Belirtilen yerde bulunan dosyayı siler"""
+    """Belirtilen yerde bulunan dosyayı siler.
+    
+    name: Silinecek dosyanın adı.
+    path: Dosyanın bulunduğu dizin.
+    """
     target = _resolve_target(name, path, "delete_file")
     if not target:
        return False
@@ -146,7 +171,11 @@ def delete_file(name: str, path: Optional[str] = None) -> bool:
 
 
 def delete_folder(name: str, path: Optional[str] = None) -> bool:
-    """Belirtilen klasörü içindekilerle beraber siler."""
+    """Belirtilen klasörü içindekilerle beraber siler.
+    
+    name: Silinecek klasörün adı.
+    path: Klasörün bulunduğu üst dizin.
+    """
     target = _resolve_target(name,path, "delete_folder")
     if not target:
        return False
