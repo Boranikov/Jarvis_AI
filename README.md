@@ -1,4 +1,4 @@
-# Just A Rather Very Intelligent Servant (J.A.R.V.I.S)
+# Jarvis AI Assistant
 
 Türkçe konuşan, yerel bir AI asistanı. Ollama LLM modeli üzerinde çalışır.
 
@@ -36,13 +36,34 @@ Jarvis_Aİ/
 pip install -r requirements.txt
 ```
 
-2. Ollama'yı kur ve modeli indir:
+### 2. Yapay Zeka (Ollama) Modellerinin İndirilmesi
+Jarvis gücünü Ollama üzerinden çalıştırılan model setlerinden alır.
+Aşağıdaki modelleri bilgisayarınıza indirin (RAM'iniz en az 16GB, tercihen 32GB olmalıdır):
 ```bash
-ollama pull qwen2.5:3b
-ollama serve
+ollama pull qwen3:1.7b           # Hızlı otonom ajans modeli (ReAct)
+ollama pull qwen2.5:7b           # Ağır muhakeme modeli
+ollama pull qwen2.5-coder:14b    # Kodlama otonom modeli
+ollama pull nomic-embed-text     # Hafıza Embedding (Metni vektöre çeviren RAG modeli)
 ```
 
-3. Uygulamayı çalıştır:
+### 3. API Anahtarları (.env Yapılandırması)
+Ana dizindeki veya `dist/JarvisAI` klasöründeki `.env` dosyasını yapılandırın:
+```env
+# Spotify Bilgileriniz
+SPOTIPY_CLIENT_ID=your_id
+SPOTIPY_CLIENT_SECRET=your_secret
+SPOTIPY_REDIRECT_URI=http://127.0.0.1:8888/callback
+
+# (Eğer kurulduysa) Diğer Entegrasyonlar
+JARVIS_N8N_WEBHOOK_URL=http://.../webhook/jarvis
+JARVIS_QDRANT_URL=http://...:6333
+```
+
+### 4. Çalıştırma
+Jarvis 3 modda çalışabilir. Kullanacağınız amaca göre uygun komutu seçin:
+
+**Mod 1: Arayüz (GUI)**
+Hızlı, gri-siyah tonlarda şık, modern bir sohbet baloncuğu deneyimi sunar:
 ```bash
 python main.py
 ```
@@ -89,10 +110,6 @@ Yeni özellik eklemek için:
 1. `Skills/` altına yeni skill dosyası oluştur (örn: `weather_skills.py`)
 2. `Skills/skills_manager.py`'deki `SKILL_MAP`'e ekle
 3. `Brain/intent_engine.py`'deki `SYSTEM_PROMPT`'a action ekle
-
-## YAPIM AŞAMASINDA
-
-Hala geliştirme sürecinde olan J.A.R.V.I.S her gün yeni özellikler kazanıyor. Dosya yapısı sık sık değişebilir ve güncellemeler alabilir
 
 ## Lisans
 

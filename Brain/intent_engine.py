@@ -1,159 +1,171 @@
 """
-Jarvis Intent Engine
-Kullanıcı girdisini NLP ile analiz ederek aksiyon ve parametreleri çıkar.
+Jarvis AI - Intent Engine
+
+Kullanıcı girdisini analiz ederek intent türü, aksiyon ve parametreleri çıkarır.
 """
 
+import json
+from typing import Any
+
 import ollama
+<<<<<<< HEAD
 import json
 import re
 from Settings.config import LLM_MODEL, LLM_TEMPERATURE
+=======
+>>>>>>> 615e1f8a70867a991aa7761346541130f977e0f8
 
-SYSTEM_PROMPT = """
-You are Jarvis, a local Turkish AI assistant.
+from Config.config import FAST_MODEL, get_logger
 
-Rules:
-- Always respond in Turkish.
-- Always address the user as "Efendim".
-- Respond ONLY with valid JSON.
-- No explanations, no markdown code blocks, just raw JSON.
-- Be concise and helpful.
+logger = get_logger("brain.intent")
 
-Allowed actions:
-- create_file
-- create_folder
-- delete_file
-- delete_folder
-- play_music
-- web_search
-- small_talk
-- missing_parameters
-- unknown
+SYSTEM_PROMPT: str = """
+Sen Jarvis'in intent anlama katmanısın. Görevin YALNIZCA kullanıcının ne yapmak istediğini anlamak ve JSON döndürmek.
 
-IMPORTANT:
-- Do NOT take your name ("Jarvis", "robot" etc.) as a parameter.
-- If required parameters are missing for an action (e.g., create_folder needs a name):
-  * action = "missing_parameters"
-  * original_action = the intended action (e.g., "create_folder")
-  * parameters.missing = list of missing fields ["name"]
+Yanıtın HER ZAMAN geçerli bir JSON objesi olmalıdır. Başka hiçbir şey ekleme.
 
-Parameter Extraction Rules:
-- ONLY extract "name" if the user explicitly provides it.
-- Remove suffixes from the name (e.g. "projeyi" -> "proje", "dosyası" -> "dosya").
-- Keywords like "klasör", "dosya", "müzik" are TYPES, NOT names.
-- Location keywords are PATHS, NOT names.
-- "masaüstüne klasör aç" -> path="desktop", name=null (Action: missing_parameters).
-- "deneme klasörü aç" -> path=null, name="deneme" (Action: create_folder).
-- For play_music: Put the COMPLETE query (artist + song name) into song_name. Do NOT separate them.
-  * "tarkan çal" -> song_name="tarkan"
-  * "experience çal" -> song_name="experience"
-  * "spotifydan tarkan çal" -> song_name="tarkan"
-  * "Everyway that i can çal" -> song_name="everyway that i can"
-  * "tarkan dudu dudu çal" -> song_name="tarkan dudu dudu"
-  * "sezen aksu zalim çal" -> song_name="sezen aksu zalim"
-  * "ahmet kaya kendine iyi bak çal" -> song_name="ahmet kaya kendine iyi bak"
+=== TYPE KURALLARI ===
+"type" alanı şu değerlerden birini alır:
 
-Locations (Path Keywords):
-- masaüstü, masaüstüne, masaüstümde -> desktop
-- belgeler, belgelerim, belgelere -> documents
-- indirilenler, indirilenlere -> downloads
-- müzik, müzikler -> music
-- resimler, fotoğraflar -> pictures
+- "skill"     → Dosya/klasör işlemleri, müzik, web arama gibi direkt aksiyonlar
+- "coding"    → Kod yazma, debug, refactor, script oluşturma
+- "reasoning" → Soru cevaplama, açıklama, planlama, tavsiye, duygu içeren konuşma
+- "chat"      → Selamlama, "nasılsın", "orada mısın" gibi basit sohbet
 
-JSON FORMAT:
+=== ALLOWED ACTIONS (sadece type="skill" için) ===
+create_file, create_folder, delete_file, delete_folder,
+write_to_file, read_file, list_dir_recursive,
+play_specific_music, play_emotion_music, pause_music, resume_music, next_track, get_current_track,
+web_search, small_talk, missing_parameters, unknown, multi_action
+
+=== GENEL KURALLAR ===
+- type="coding" veya "reasoning" ise action="none", params={} bırak.
+- Jarvis, robot gibi kelimeleri parametre olarak alma.
+- Eksik parametre varsa: action="missing_parameters", original_action=asıl_aksiyon, params.missing=[eksik_alanlar]
+
+=== PARAMETRE ÇIKARMA ===
+- "name": Kullanıcı açıkça belirtirse al. Türkçe ekleri temizle ("projeyi" → "proje").
+- "path": masaüstü/masaüstüne → "desktop", belgeler → "documents", indirilenler → "downloads"
+- Dosya/klasör işlemlerinde path belirtilmemişse path=null bırak (handler tamamlar).
+- play_music: Sanatçı, şarkı adı veya aranacak kelime. "Tarkan çal" → artist_name="tarkan", query="tarkan". "sezen aksu zalim" → artist_name="sezen aksu", song_name="zalim".
+
+=== MULTI-ACTION ===
+Birden fazla görev varsa: action="multi_action", actions listesini doldur.
+Her action: {"action": "...", "path": "...", "name": "...", "parameters": {}}
+write_to_file içeriyorsa type="coding" kullan, intent engine değil coding engine halleder.
+
+=== JSON FORMATI ===
 {
+  "type": "skill | coding | reasoning | chat",
   "action": "string",
-  "reply": "string in Turkish",
   "path": "string or null",
   "name": "string or null",
+  "song_name": "string or null",
+  "artist_name": "string or null",
+  "query": "string or null",
   "original_action": "string or null",
-  "song_name": "string or null" (for play_music action),
-  "parameters": { "missing": [] } or {}
+  "confidence": 0.0-1.0,
+  "parameters": {},
+  "actions": []
 }
 
-EXAMPLES:
+=== ÖRNEKLER ===
 
-User: "Masaüstüne yeni proje adında bir klasör aç"
-Output: {"action": "create_folder", "reply": "Masaüstüne yeni proje klasörünü oluşturuyorum Efendim.", "path": "desktop", "name": "yeni proje", "original_action": null, "parameters": {}}
+User: "Masaüstüne proje klasörü aç"
+{"type":"skill","action":"create_folder","path":"desktop","name":"proje","song_name":null,"artist_name":null,"query":null,"original_action":null,"confidence":0.98,"parameters":{},"actions":[]}
 
 User: "Belgelerime klasör oluştur"
-Output: {"action": "missing_parameters", "reply": "Klasörün ismini belirtmediniz Efendim.", "path": "documents", "name": null, "original_action": "create_folder", "parameters": {"missing": ["name"]}}
+{"type":"skill","action":"missing_parameters","path":"documents","name":null,"song_name":null,"artist_name":null,"query":null,"original_action":"create_folder","confidence":0.95,"parameters":{"missing":["name"]},"actions":[]}
 
 User: "Tarkan çal"
-Output: {"action": "play_music", "reply": "Tarkan'ı Spotify'da arıyorum Efendim.", "path": null, "name": null, "song_name": "tarkan", "original_action": null, "parameters": {}}
+{"type":"skill","action":"play_music","path":null,"name":null,"song_name":null,"artist_name":"tarkan","query":"tarkan","original_action":null,"confidence":0.99,"parameters":{},"actions":[]}
 
-User: "Tarkan Dudu Dudu çal"
-Output: {"action": "play_music", "reply": "Tarkan - Dudu Dudu şarkısını Spotify'da arıyorum Efendim.", "path": null, "name": null, "song_name": "tarkan dudu dudu", "original_action": null, "parameters": {}}
+User: "Python nedir?"
+{"type":"reasoning","action":"none","path":null,"name":null,"song_name":null,"artist_name":null,"query":null,"original_action":null,"confidence":0.97,"parameters":{},"actions":[]}
 
-User: "Sezen Aksu Zalim çal"
-Output: {"action": "play_music", "reply": "Sezen Aksu - Zalim şarkısını Spotify'da arıyorum Efendim.", "path": null, "name": null, "song_name": "sezen aksu zalim", "original_action": null, "parameters": {}}
-
-User: "Ahmet Kaya Kendine İyi Bak çal"
-Output: {"action": "play_music", "reply": "Ahmet Kaya - Kendine İyi Bak şarkısını Spotify'da arıyorum Efendim.", "path": null, "name": null, "song_name": "ahmet kaya kendine iyi bak", "original_action": null, "parameters": {}}
-
-User: "Spotifydan Experience çal"
-Output: {"action": "play_music", "reply": "Experience şarkısını Spotify'da arıyorum Efendim.", "path": null, "name": null, "song_name": "experience", "original_action": null, "parameters": {}}
-
-User: "Everyway that i can çal"
-Output: {"action": "play_music", "reply": "Everyway That I Can şarkısını Spotify'da arıyorum Efendim.", "path": null, "name": null, "song_name": "everyway that i can", "original_action": null, "parameters": {}}
+User: "Hesap makinesi kodu yaz"
+{"type":"coding","action":"none","path":null,"name":null,"song_name":null,"artist_name":null,"query":null,"original_action":null,"confidence":0.99,"parameters":{},"actions":[]}
 
 User: "Nasılsın Jarvis"
-Output: {"action": "small_talk", "reply": "İyiyim, teşekkürler Efendim. Size nasıl yardımcı olabilirim?", "path": null, "name": null, "original_action": null, "parameters": {}}
+{"type":"chat","action":"small_talk","path":null,"name":null,"song_name":null,"artist_name":null,"query":null,"original_action":null,"confidence":0.99,"parameters":{},"actions":[]}
 
-Respond ONLY with JSON.
+User: "Masaüstüne deneme klasörü oluştur ve içine hesap_makinesi.py yaz"
+{"type":"coding","action":"multi_action","path":null,"name":null,"song_name":null,"artist_name":null,"query":null,"original_action":null,"confidence":0.96,"parameters":{},"actions":[{"action":"create_folder","path":"desktop","name":"deneme","parameters":{}},{"action":"write_to_file","path":"desktop/deneme","name":"hesap_makinesi.py","parameters":{}}]}
+
+SADECE JSON DÖNDÜR.
 """
 
+# Varsayılan (boş/hata) yanıt şablonu
+_DEFAULT_FIELDS: dict[str, Any] = {
+    "type": "chat",
+    "path": None,
+    "name": None,
+    "song_name": None,
+    "artist_name": None,
+    "query": None,
+    "original_action": None,
+    "confidence": 0.0,
+    "parameters": {},
+    "actions": [],
+}
 
-def process_command(text: str, history: list) -> dict:
+
+def process_command(text: str, history: list[dict]) -> dict[str, Any]:
     """
-    Kullanıcı komutunu NLP ile işle ve intent'i tanı.
-    
+    Kullanıcı komutunu işle ve intent'i tanı.
+
     Args:
         text: Kullanıcı girdisi
         history: Konuşma geçmişi
-        
+
     Returns:
         Intent ve parametreleri içeren dictionary
     """
+    # Son 3 konuşmayı geçmiş olarak ekle
+    history_msgs: list[dict] = []
+    for entry in history[-3:]:
+        history_msgs.append({"role": "user", "content": entry.get("user", "")})
+        history_msgs.append({
+            "role": "assistant",
+            "content": entry.get("jarvis", ""),
+        })
+
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        *history_msgs,
+        {"role": "user", "content": text},
+    ]
+
     try:
         response = ollama.chat(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": text}
-            ],
-            options={"temperature": LLM_TEMPERATURE}
+            model=FAST_MODEL,
+            messages=messages,
+            format="json",
+            options={"temperature": 0.0},
         )
 
-        content = response.message.content.strip()
-        match = re.search(r"\{.*\}", content, re.DOTALL)
+        result: dict = json.loads(response.message.content)
+        for key, default_value in _DEFAULT_FIELDS.items():
+            result.setdefault(key, default_value)
 
-        if not match:
-            return {
-                "action": "unknown",
-                "reply": "Anlayamadım efendim.",
-                "parameters": {}
-            }
-
-        result = json.loads(match.group())
-        
-        # Eksik alanları doldur
-        result.setdefault("path", None)
-        result.setdefault("name", None)
-        result.setdefault("song_name", None)
-        result.setdefault("original_action", None)
-        result.setdefault("parameters", {})
-        result.setdefault("reply", "Efendim?")
+        logger.debug(
+            "Intent: type=%s action=%s confidence=%.2f",
+            result.get("type"),
+            result.get("action"),
+            result.get("confidence", 0.0),
+        )
 
         return result
 
-    except Exception as e:
-        print(f"[ERROR] Intent Engine: {str(e)}")
-        return {
-            "action": "unknown",
-            "reply": "Bir hata oluştu efendim.",
-            "path": None,
-            "name": None,
-            "original_action": None,
-            "parameters": {}
-        }
+    except json.JSONDecodeError as exc:
+        logger.error("JSON parse hatası (format=json ile olmamalı): %s", exc)
+    except ConnectionError as exc:
+        logger.error("Ollama bağlantı hatası: %s", exc)
+    except Exception as exc:
+        logger.error("Intent Engine beklenmeyen hata: %s", exc, exc_info=True)
 
+    return {
+        "type": "chat",
+        "action": "unknown",
+        **{k: v for k, v in _DEFAULT_FIELDS.items() if k != "type"},
+    }

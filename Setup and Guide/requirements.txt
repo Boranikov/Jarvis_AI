@@ -1,1 +1,40 @@
-ollama>=0.1.0
+# Jarvis AI - Python Bağımlılıkları
+
+# LLM (Ollama Python client)
+ollama>=0.4.0
+langchain-core>=0.3.0
+langchain-ollama>=0.2.0
+langgraph>=0.2.0
+
+# GUI
+PyQt6>=6.6.0
+
+# Müzik (Spotify API)
+spotipy>=2.23.0
+
+# Ortam değişkenleri
+python-dotenv>=1.0.0
+
+# === Dağıtık Sistem (Faz 0) ===
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+httpx>=0.28.0
+pydantic-settings>=2.7.0
+structlog>=24.4.0
+tenacity>=9.0.0
+
+# === Vektör Hafıza (Faz 3) ===
+qdrant-client>=1.12.0
+
+# === MCP (Faz 4) ===
+mcp[cli]>=1.2.0
+
+# Opsiyonel — Matematik doğrulama (Utils/math_validator.py)
+# sympy>=1.12
+# numpy>=1.24.0
+
+# === Yönlendirme ve Anlamsal Analiz (Faz 5) ===
+semantic-router>=0.0.40
+
+# === CLI ve Terminal UX ===
+rich>=13.7.1

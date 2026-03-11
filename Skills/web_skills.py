@@ -1,33 +1,28 @@
 """
 Jarvis AI - Web Skills
-Web araması işlemleri.
+
+Web araması işlemleri. Tüm parametre doğrulaması yerel argümanlarla yapılır.
 """
 
-import webbrowser
 import urllib.parse
+import webbrowser
+
+from Config.config import get_logger
+
+logger = get_logger("skills.web")
 
 
-def web_search(params: dict) -> bool:
-    """
-    Google'da arama yap.
-    
-    Args:
-        params: name içeren dictionary
-        
-    Returns:
-        Başarılı ise True
-    """
-    query = params.get("name")
-    
-    if not query:
-        print(">> [ERROR] Arama terimi belirtilmedi.")
-        return False
-    
+# ==========================================
+# YETENEK FONKSİYONLARI (SKILLS)
+# ==========================================
+
+def web_search(name: str) -> bool:
+    """Google'da verilen terimi arar ve yeni sekmede açar."""
     try:
-        encoded_query = urllib.parse.quote(query)
-        webbrowser.open(f"https://www.google.com/search?q={encoded_query}")
-        print(f">> [OK] Google'da '{query}' aranıyor...")
+        encoded = urllib.parse.quote(name)
+        webbrowser.open(f"https://www.google.com/search?q={encoded}")
+        logger.info("Google'da '%s' aranıyor", name)
         return True
-    except Exception as e:
-        print(f">> [ERROR] Google açma başarısız: {str(e)}")
+    except OSError as exc:
+        logger.error("Google açma başarısız: %s", exc)
         return False

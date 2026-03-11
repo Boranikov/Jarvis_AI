@@ -1,8 +1,9 @@
 """
-Brain Module - NLP ve Intent Engine
+Brain Module - NLP, Intent Engine ve Model Routing
 """
 
-from .intent_engine import process_command
 from .memory import Memory
 
-__all__ = ["process_command", "Memory"]
+__all__ = [
+    "Memory",
+]
