@@ -1,37 +1,54 @@
-# Jarvis AI Assistant
+# 🤖 Jarvis AI — Akıllı Kişisel Asistan (ReAct Agent Mimarisi) [FINAL VERSION]
 
-Türkçe konuşan, yerel bir AI asistanı. Ollama LLM modeli üzerinde çalışır.
+> [!NOTE]
+> Bu proje geliştirme sürecinin sonuna gelmiştir. Tüm temel fonksiyonlar (ReAct Engine, MCP Entegrasyonu, Spotify ve Dosya Yetenekleri) çalışır durumdadır. Bu depo, projenin nihai ve kararlı halini temsil eder.
 
-## Proje Yapısı
+Jarvis, yerel bilgisayarınız üzerinde (Tailscale ve Ollama aracılığıyla) tamamen size özel ve **ağ bağlantılı cihazlarla konuşabilen** hibrit bir Yapay Zeka kişisel asistan projesidir. Windows sisteminde bir UI (kullanıcı arayüzü), komut satırı veya System Tray üzerinde arka plan servisi gibi çalışabilir. Aynı zamanda, n8n üzerinden Telegram veya Web tarayıcınıza bağlanarak dış dünyadan (FastAPI) da istek alır.
 
-```
-Jarvis_Aİ/
-├── main.py                    # Ana uygulama (entry point)
-├── config.py                  # Konfigürasyon dosyası
-├── requirements.txt           # Bağımlılıklar
-│
-├── Core/                      # Ana işleme modülü
-│   ├── handler.py             # Kullanıcı girdisi işleme
-│   └── display.py             # UI ve çıktı fonksiyonları
-│
-├── Brain/                     # NLP ve Intent Engine
-│   ├── intent_engine.py       # LLM tabanlı intent tanıma
-│   └── memory.py              # Konuşma hafızası
-│
-├── Skills/                    # Beceri modülleri
-│   ├── skills_manager.py      # Skill yönlendirici (router)
-│   ├── file_skills.py         # Dosya/klasör işlemleri
-│   ├── music_skills.py        # Müzik çalma
-│   └── web_skills.py          # Web araması
-│
-└── Utils/                     # Yardımcı fonksiyonlar
-    ├── paths.py               # Path işlemleri
-    └── helpers.py             # Genel yardımcılar
-```
+> **LangGraph ReAct Mimarisi** · **Otonom Kod (Agentic) Yazma** · **Qdrant Vektör Hafıza (RAG)** · **FastMCP Tool Sistemi**
 
-## Kurulum
+---
 
-1. Gerekli kütüphaneleri yükle:
+## 🎯 Proje Özeti: Jarvis Neler Yapabilir?
+
+Asistan basit sohbetlerin ötesinde bilgisayarınızda fiziksel veya dosya bazlı eylemleri kendi başına yürütebilir. Temel yetenekleri şunlardır:
+
+1. **Dosya & Klasör Yönetimi:** Seçilen dizinde dosyalar oluşturma, okuma, ağaç yapısını analiz etme ve hatta dosyaları silme.
+2. **Müzik ve Medya Kontrolü:** Spotify ile tam entegre çalışır. Ruh halinize göre şarkı aratabilir, listelere ulaşabilir, çalma/durdurma başlatabilirsiniz.
+3. **Agentic Kodlama:** Sadece kod önermekle kalmaz; `write_to_file`, `list_dir_recursive` araçlarıyla birlikte bir projeyi (örn. hesap makinesi) bir disk ortamına **tam çalışan koduyla ve klasör mimarisiyle** kendi yazar. Hataları bulup refactor(düzenleme) edebilir.
+4. **Kişisel Hafıza (Qdrant & RAG):** Yapılan sohbetlerdeki bağlamı anlar ve bunu bir Vektör Veritabanı içinde (Embeddings) tutar. Aylar sonra sorduğunuz bir konuyu (Örn: "Daha önce adımın ne olduğundan bahsettiğimiz konuşmayı bul") anımsayarak sohbete dahil eder.
+5. **Duygu Analizi:** Kurduğunuz cümlelerin olumlu/olumsuz duygu durumunu çıkarır, empatik yanıt verir veya sizi eğlendirmek için otomatik şarkı önerilerde bulunur.
+6. **Telegram & Bulut Erişilebilirliği:** Evde çalışan Jarvis'e cep telefonunuzdan Telegram vasıtasıyla kod yazdırabilir, sunucu (Nextcloud) üzerindeki dokümanlarınıza MCP protokolüyle asenkron şekilde müdahale edebilirsiniz.
+
+---
+
+## 🏗️ Modüler Mimari (Tek Bakışta Yapı)
+
+Jarvis'in güncel sürümü **ReAct (Reasoning and Acting)** konseptiyle `LangGraph` altyapısı üzerine kurulmuştur. `Qwen3:1.7b` gibi süper hızlı veya `Qwen2.5-Coder:14b` gibi kodlama odaklı modellerle entegredir. Model, tek bir "Girdi" üzerinden anında aletleri (Tools/Skills) kullanıp kullanamayacağına kendi otonom karar verir.
+
+### `Brain/` (AI'ın Beyni - LangGraph)
+- `graph_router.py`: İsteklerin asenkron olarak aktığı, StateGraph düğümlerinin tutulduğu asıl orkestra şefidir.
+- `graph_nodes.py`: `agent_node` ve `tool_node` yapılarını barındırır. Model (Qwen3) düşünür (Think), araç kullanmaya karar verirse (Action), işlem `tool_node`'a kayar (Observation) ve tekrar `agent_node`'a döner. Hedef başarılı olduğunda işlemi `finish_task` aracıyla sonlandırır.
+- `coding_engine.py`: **(Kodlama Modeli - qwen2.5-coder:14b)**. Tam otonomdur (Agentic loop). Sistemi bozana kadar veya kendi hedefine ulaşana kadar (Maksimum iterasyon = 15) defalarca dosya okuma, dosya yazma işlemleri yapar. Tam çalışmayan kodları onaylamaz.
+- `memory.py`: Kısa vadeli sohbet dizilerini ve çok turlu diyalog bağlamlarını tutar.
+
+### `Core/` & `Server/` (Kasa ve Kapı)
+- `Core/handler.py`: Senkron çalışan arayüz (GUI ve CLI) kullanıcılarının isteklerini LangGraph Ajanına aktaran ana işleyicidir. "Jarvis orda mısın" gibi varlık kontrollerini anında yanıtlar.
+- `Core/async_handler.py`: Asenkron çalışan FastAPI (Sunucu) uçlarının isteklerini, eşzamanlı kopmalar yaşatmaksızın doğrudan `graph_router.py` motoruna enjekte eder.
+- `Server/app.py`: Jarvis, sadece PC arayüzünde değil arka planda bir **FastAPI** sunucusu olarak çalışır. `http://0.0.0.0:8000` portundan açılan uç ile Telegram (n8n Webhook) üzerinden bağlanan iletileri (Payload) karşılar.
+
+### `Skills/` & `MCP/` (Eller ve Ayaklar)
+- `Skills/`: Modelin kullanabildiği fiziksel işlevlerdir. `file_skills.py` cihazdaki gerçek okuma-yazmaları, `music_skills.py` ise Spotify API kontrollerini (Keskin arama ve sanitizasyon ile) halleder. Tüm lokal yetenekler ve schema dönüşümleri `skills_manager.py` ile tek noktadan fırlatılır.
+- `MCP/` (Model Context Protocol): FastMCP altyapısıyla harici uçları (Nextcloud, Qdrant RAG, Bildirim sistemleri) LLM'in anlayacağı "Tool" dizilerine standartlaştırır. Ağ üzerinden gelen bu asenkron yapı `tool_registry.py` yardımıyla senkron bir şekilde LangGraph sarmalına bağlanır.
+
+---
+
+## 🚀 Başlamadan Önce (Kurulum)
+
+Sistemi denemek veya kendi ortamınızda kurmak için:
+
+### 1. Python Gereksinimleri
+Python 3.11+ kullandığınızdan emin olun. Terminalden çalıştırın:
 ```bash
 pip install -r requirements.txt
 ```
@@ -68,49 +85,28 @@ Hızlı, gri-siyah tonlarda şık, modern bir sohbet baloncuğu deneyimi sunar:
 python main.py
 ```
 
-## Özellikler
+**Mod 2: Konsol (CLI) - Önerilen**
+Modern, büyük fontlu bir açılış ekranıyla başlar. Log detayları `/debug` komutlarıyla kontrol edilebilir:
+```bash
+python main.py --cli
+# veya
+jarvis.bat
+```
 
-- 🎯 **Intent Recognition**: Kullanıcı girdisini NLP ile analiz et
-- 📁 **Dosya Yönetimi**: Dosya/klasör oluştur ve sil
-- 🎵 **Spotify Entegrasyonu**: Spotify'dan müzik çal
-- 🔍 **Web Arama**: Google'da ara
-- 💬 **Küçük Sohbet**: Genel sohbet
-- 🧠 **Konuşma Hafızası**: Son 10 konuşmayı hatırla
+**Mod 3: Sunucu Modu (Background Tray & Dağıtık)**
+Bu modda GUI açılmaz, ekranın sağ altına sadece bir J logolu System Tray ikonu oturur. Arka planda FastAPI sunucusu aktifleşir ve Tailscale / Telegram / Web üzerinden kullanıma hazır port dinler.
+```bash
+python jarvis_tray.py
+# veya
+python main.py --server
+```
 
-## Komutlar
+### 5. Sintemi Test Etmek
+Tüm mikroservislerin (Qdrant, Ollama, FastAPI) bağlantısını test eden yardımcı aracı çalıştırın:
+```bash
+python health_check.py
+```
 
-### Dosya Yönetimi
-- "Jarvis, test.txt oluştur"
-- "Jarvis, my_folder klasörü oluştur"
-- "Jarvis, test.txt sil"
+---
 
-### Müzik
-- "Jarvis, Tarkan çal"
-- "Sezen Aksu tükeneceğiz çal"
-
-### Web Arama
-- "Jarvis, Python ara"
-
-### Sistem
-- "Jarvis, orda mısın?" → Sistem kontrolü
-- "çık" veya "exit" → Programı kapat
-
-## Konfigürasyon
-
-`config.py` dosyasında ayarları özelleştirebilirsiniz:
-
-- `LLM_MODEL`: Kullanılan LLM modeli
-- `LLM_TEMPERATURE`: Yaratıcılık seviyesi
-- `DEBUG_MODE`: Hata ayıklama modu
-
-## Geliştirme
-
-Yeni özellik eklemek için:
-
-1. `Skills/` altına yeni skill dosyası oluştur (örn: `weather_skills.py`)
-2. `Skills/skills_manager.py`'deki `SKILL_MAP`'e ekle
-3. `Brain/intent_engine.py`'deki `SYSTEM_PROMPT`'a action ekle
-
-## Lisans
-
-MIT License
+Daha fazla yapılandırma, System Tray kullanımları, n8n-Telegram entegrasyonu hakkında bilgi için lütfen **[KULLANIM_KILAVUZU.md](KULLANIM_KILAVUZU.md)** dosyasını okuyun. Mimariye müdahale edecek ve yeni özellik (Yetenekler veya Skill) katacak geliştiriciler/Mimar AI Modelleri için mutlaka **[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)** belge rehberini incelemelidir!
